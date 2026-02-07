@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DegradedBanner } from "@/components/ui/degraded-banner";
 import { trpcClient } from "@/lib/trpc-client";
+import { cn } from "@/lib/utils";
 
 type AdapterEnvelope<T> = {
   adapterId: string;
@@ -136,7 +137,7 @@ function useAdapterSnapshot<T>(adapterId: string, refetchInterval = 30_000) {
   });
 }
 
-function EChart({ option }: { option: echarts.EChartsOption }) {
+function EChart({ option, className }: { option: echarts.EChartsOption; className?: string }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<echarts.EChartsType | null>(null);
 
@@ -168,7 +169,7 @@ function EChart({ option }: { option: echarts.EChartsOption }) {
     };
   }, []);
 
-  return <div className="h-64 w-full" ref={rootRef} />;
+  return <div className={cn("h-64 w-full", className)} ref={rootRef} />;
 }
 
 export function GridEnergyDashboard() {
@@ -247,51 +248,119 @@ export function GridEnergyDashboard() {
 
     const windPercent = generation > 0 ? Math.min(100, (wind / generation) * 100) : 0;
 
+    const baseGauge: echarts.GaugeSeriesOption = {
+      anchor: {
+        show: true,
+        itemStyle: {
+          color: "#374151",
+        },
+        size: 14,
+      },
+      axisLabel: { show: false },
+      axisLine: {
+        lineStyle: {
+          color: [[1, "#d1d5db"]],
+          width: 20,
+        },
+      },
+      axisTick: { show: false },
+      detail: { fontSize: 36, fontWeight: "bold", offsetCenter: [0, "8%"] },
+      pointer: {
+        itemStyle: {
+          color: "#374151",
+        },
+        length: "70%",
+        width: 8,
+      },
+      progress: {
+        itemStyle: {
+          color: "#2563eb",
+        },
+        roundCap: true,
+        show: true,
+        width: 20,
+      },
+      splitLine: { show: false },
+      title: { fontSize: 20, offsetCenter: [0, "82%"] },
+    };
+
     return {
       animationDuration: 300,
       series: [
         {
+          ...baseGauge,
           type: "gauge",
-          center: ["20%", "45%"],
-          radius: "35%",
+          center: ["20%", "37%"],
+          radius: "31%",
           min: 0,
           max: 7000,
-          progress: { show: true, width: 10 },
-          detail: { formatter: "{value} MW", fontSize: 12, offsetCenter: [0, "65%"] },
-          title: { offsetCenter: [0, "95%"], fontSize: 12 },
+          detail: {
+            fontSize: 36,
+            fontWeight: "bold",
+            offsetCenter: [0, "8%"],
+            formatter: "{value} MW",
+          },
+          title: { fontSize: 20, offsetCenter: [0, "82%"] },
           data: [{ value: Math.round(demand), name: "Demand" }],
         },
         {
+          ...baseGauge,
           type: "gauge",
-          center: ["50%", "45%"],
-          radius: "35%",
+          center: ["50%", "37%"],
+          radius: "31%",
           min: 0,
           max: 7000,
-          progress: { show: true, width: 10 },
-          detail: { formatter: "{value} MW", fontSize: 12, offsetCenter: [0, "65%"] },
-          title: { offsetCenter: [0, "95%"], fontSize: 12 },
+          progress: {
+            ...baseGauge.progress,
+            itemStyle: { color: "#84cc16" },
+          },
+          detail: {
+            fontSize: 36,
+            fontWeight: "bold",
+            offsetCenter: [0, "8%"],
+            formatter: "{value} MW",
+          },
+          title: { fontSize: 20, offsetCenter: [0, "82%"] },
           data: [{ value: Math.round(generation), name: "Generation" }],
         },
         {
+          ...baseGauge,
           type: "gauge",
-          center: ["80%", "45%"],
-          radius: "35%",
+          center: ["80%", "37%"],
+          radius: "31%",
           min: 0,
           max: 100,
-          progress: { show: true, width: 10 },
-          detail: { formatter: "{value}%", fontSize: 12, offsetCenter: [0, "65%"] },
-          title: { offsetCenter: [0, "95%"], fontSize: 12 },
+          progress: {
+            ...baseGauge.progress,
+            itemStyle: { color: "#4f46e5" },
+          },
+          detail: {
+            fontSize: 36,
+            fontWeight: "bold",
+            offsetCenter: [0, "8%"],
+            formatter: "{value} %",
+          },
+          title: { fontSize: 20, offsetCenter: [0, "82%"] },
           data: [{ value: Number(windPercent.toFixed(1)), name: "Wind %" }],
         },
         {
+          ...baseGauge,
           type: "gauge",
-          center: ["50%", "92%"],
-          radius: "25%",
+          center: ["50%", "84%"],
+          radius: "29%",
           min: 49,
           max: 51,
-          progress: { show: true, width: 8 },
-          detail: { formatter: "{value} Hz", fontSize: 12, offsetCenter: [0, "65%"] },
-          title: { offsetCenter: [0, "95%"], fontSize: 12 },
+          progress: {
+            ...baseGauge.progress,
+            itemStyle: { color: "#fb923c" },
+          },
+          detail: {
+            fontSize: 36,
+            fontWeight: "bold",
+            offsetCenter: [0, "8%"],
+            formatter: "{value} Hz",
+          },
+          title: { fontSize: 20, offsetCenter: [0, "82%"] },
           data: [{ value: Number(frequency.toFixed(2)), name: "Frequency" }],
         },
       ],
@@ -408,7 +477,7 @@ export function GridEnergyDashboard() {
           ECharts real-time gauges for core national energy metrics.
         </p>
         {showCharts ? (
-          <EChart option={gaugeOption} />
+          <EChart className="h-[34rem]" option={gaugeOption} />
         ) : (
           <button
             className="mt-3 rounded-md border px-3 py-2 text-sm"
