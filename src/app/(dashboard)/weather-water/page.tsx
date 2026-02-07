@@ -1,4 +1,4 @@
-import { Card } from "@tremor/react";
+import { WeatherWaterDashboard } from "@/components/weather/weather-water-dashboard";
 
 export default function WeatherWaterPage() {
   return (
@@ -9,13 +9,7 @@ export default function WeatherWaterPage() {
           Met Eireann conditions, warnings, and OPW water level monitoring.
         </p>
       </div>
-
-      <Card>
-        <h2 className="text-lg font-semibold tracking-tight">Station Overview</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Placeholders are ready for station conditions and warning states.
-        </p>
-      </Card>
+      <WeatherWaterDashboard />
     </section>
   );
 }
