@@ -5,6 +5,7 @@ import { Card } from "@tremor/react";
 import * as echarts from "echarts";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { GridEnergyMap } from "@/components/grid/grid-energy-map";
 import { trpcClient } from "@/lib/trpc-client";
 
 type AdapterEnvelope<T> = {
@@ -42,6 +43,79 @@ type DemandSnapshot = {
   demandMw: number;
   effectiveTime: string | null;
   capturedAt: string;
+};
+
+type HistoryPoint = {
+  demand: number;
+  generation: number;
+  ts: number;
+};
+
+const gridHistoryStorageKey = "live_ireland_grid_history_v1";
+
+const readHistoryFromStorage = (): HistoryPoint[] => {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(gridHistoryStorageKey);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as HistoryPoint[];
+    return parsed.filter(
+      (item) =>
+        Number.isFinite(item.ts) &&
+        Number.isFinite(item.demand) &&
+        Number.isFinite(item.generation),
+    );
+  } catch {
+    return [];
+  }
+};
+
+const writeHistoryToStorage = (history: HistoryPoint[]) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(gridHistoryStorageKey, JSON.stringify(history.slice(-10_000)));
+};
+
+const aggregateHistory = (history: HistoryPoint[], bucketMs: number): HistoryPoint[] => {
+  if (bucketMs <= 0) {
+    return history;
+  }
+
+  const buckets = new Map<number, { count: number; demand: number; generation: number }>();
+  for (const point of history) {
+    const bucketStart = Math.floor(point.ts / bucketMs) * bucketMs;
+    const current = buckets.get(bucketStart) ?? { count: 0, demand: 0, generation: 0 };
+    current.count += 1;
+    current.demand += point.demand;
+    current.generation += point.generation;
+    buckets.set(bucketStart, current);
+  }
+
+  return [...buckets.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([ts, value]) => ({
+      ts,
+      demand: Number((value.demand / value.count).toFixed(1)),
+      generation: Number((value.generation / value.count).toFixed(1)),
+    }));
+};
+
+const downloadText = (filename: string, content: string, mimeType: string) => {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
 };
 
 function useAdapterSnapshot<T>(adapterId: string, refetchInterval = 30_000) {
@@ -104,9 +178,15 @@ export function GridEnergyDashboard() {
   const esbQuery = useAdapterSnapshot<EsbPayload>("esb-powercheck-outages", 60_000);
   const gasQuery = useAdapterSnapshot<GasPayload>("gas-networks-map", 60_000);
 
-  const [series, setSeries] = useState<Array<{ time: string; demand: number; generation: number }>>(
-    [],
-  );
+  const [series, setSeries] = useState<HistoryPoint[]>([]);
+  const [rangeHours, setRangeHours] = useState("24");
+  const [aggregation, setAggregation] = useState("raw");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+
+  useEffect(() => {
+    setSeries(readHistoryFromStorage());
+  }, []);
 
   useEffect(() => {
     const demand = demandQuery.data?.payload?.demandMw;
@@ -118,13 +198,20 @@ export function GridEnergyDashboard() {
     }
 
     setSeries((current) => {
-      const time = new Date(capturedAt).toLocaleTimeString("en-IE", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      });
-      const next = [...current, { demand, generation, time }];
-      return next.slice(-120);
+      const ts = new Date(capturedAt).getTime();
+      if (!Number.isFinite(ts)) {
+        return current;
+      }
+
+      const alreadyExists = current.at(-1)?.ts === ts;
+      if (alreadyExists) {
+        return current;
+      }
+
+      const next = [...current, { demand, generation, ts }];
+      const trimmed = next.slice(-10_000);
+      writeHistoryToStorage(trimmed);
+      return trimmed;
     });
   }, [
     demandQuery.data?.capturedAt,
@@ -197,13 +284,45 @@ export function GridEnergyDashboard() {
   ]);
 
   const lineOption = useMemo<echarts.EChartsOption>(() => {
+    const now = Date.now();
+    const rangeWindowMs =
+      rangeHours === "all"
+        ? Number.POSITIVE_INFINITY
+        : Number.parseInt(rangeHours, 10) * 60 * 60 * 1000;
+
+    const startTs = customStart ? new Date(customStart).getTime() : now - rangeWindowMs;
+    const endTs = customEnd ? new Date(customEnd).getTime() : now;
+
+    const filtered = series.filter((point) => {
+      if (!Number.isFinite(startTs) || !Number.isFinite(endTs)) {
+        return true;
+      }
+      return point.ts >= startTs && point.ts <= endTs;
+    });
+
+    const bucketMs =
+      aggregation === "5m"
+        ? 5 * 60 * 1000
+        : aggregation === "15m"
+          ? 15 * 60 * 1000
+          : aggregation === "60m"
+            ? 60 * 60 * 1000
+            : 0;
+
+    const plottingSeries = aggregateHistory(filtered, bucketMs);
+
     return {
       animation: false,
       tooltip: { trigger: "axis" },
       legend: { data: ["Demand", "Generation"] },
       xAxis: {
         type: "category",
-        data: series.map((item) => item.time),
+        data: plottingSeries.map((item) =>
+          new Date(item.ts).toLocaleTimeString("en-IE", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        ),
       },
       yAxis: {
         type: "value",
@@ -214,18 +333,46 @@ export function GridEnergyDashboard() {
         {
           type: "line",
           name: "Demand",
-          data: series.map((item) => item.demand),
+          data: plottingSeries.map((item) => item.demand),
           smooth: true,
           showSymbol: false,
         },
         {
           type: "line",
           name: "Generation",
-          data: series.map((item) => item.generation),
+          data: plottingSeries.map((item) => item.generation),
           smooth: true,
           showSymbol: false,
         },
       ],
+    };
+  }, [aggregation, customEnd, customStart, rangeHours, series]);
+
+  const comparativeSummary = useMemo(() => {
+    const now = Date.now();
+    const thisHourStart = now - 60 * 60 * 1000;
+    const previousHourStart = now - 2 * 60 * 60 * 1000;
+
+    const thisHour = series.filter((point) => point.ts >= thisHourStart && point.ts < now);
+    const previousHour = series.filter(
+      (point) => point.ts >= previousHourStart && point.ts < thisHourStart,
+    );
+
+    const average = (values: number[]) =>
+      values.length === 0 ? null : values.reduce((sum, value) => sum + value, 0) / values.length;
+
+    const thisHourDemand = average(thisHour.map((point) => point.demand));
+    const previousHourDemand = average(previousHour.map((point) => point.demand));
+
+    const delta =
+      thisHourDemand === null || previousHourDemand === null
+        ? null
+        : Number((thisHourDemand - previousHourDemand).toFixed(1));
+
+    return {
+      delta,
+      previousHourDemand,
+      thisHourDemand,
     };
   }, [series]);
 
@@ -244,7 +391,130 @@ export function GridEnergyDashboard() {
         <p className="text-xs text-muted-foreground">
           Streaming time-series with session DataZoom.
         </p>
+        <div className="mt-3 grid gap-2 md:grid-cols-4">
+          <div>
+            <label className="text-xs text-muted-foreground" htmlFor="grid-range-selector">
+              Range
+            </label>
+            <select
+              className="mt-1 w-full rounded-md border bg-background px-2 py-1 text-sm"
+              id="grid-range-selector"
+              onChange={(event) => setRangeHours(event.target.value)}
+              value={rangeHours}
+            >
+              <option value="1">Last 1h</option>
+              <option value="6">Last 6h</option>
+              <option value="24">Last 24h</option>
+              <option value="all">All local history</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground" htmlFor="grid-aggregation-selector">
+              Aggregation
+            </label>
+            <select
+              className="mt-1 w-full rounded-md border bg-background px-2 py-1 text-sm"
+              id="grid-aggregation-selector"
+              onChange={(event) => setAggregation(event.target.value)}
+              value={aggregation}
+            >
+              <option value="raw">Raw</option>
+              <option value="5m">5 minute avg</option>
+              <option value="15m">15 minute avg</option>
+              <option value="60m">60 minute avg</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground" htmlFor="grid-custom-start">
+              Custom Start
+            </label>
+            <input
+              className="mt-1 w-full rounded-md border bg-background px-2 py-1 text-sm"
+              id="grid-custom-start"
+              onChange={(event) => setCustomStart(event.target.value)}
+              type="datetime-local"
+              value={customStart}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground" htmlFor="grid-custom-end">
+              Custom End
+            </label>
+            <input
+              className="mt-1 w-full rounded-md border bg-background px-2 py-1 text-sm"
+              id="grid-custom-end"
+              onChange={(event) => setCustomEnd(event.target.value)}
+              type="datetime-local"
+              value={customEnd}
+            />
+          </div>
+        </div>
         <EChart option={lineOption} />
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button
+            className="rounded-md border px-2 py-1 text-xs"
+            onClick={() => {
+              const payload = JSON.stringify(series, null, 2);
+              downloadText("grid-history.json", payload, "application/json");
+            }}
+            type="button"
+          >
+            Export JSON
+          </button>
+          <button
+            className="rounded-md border px-2 py-1 text-xs"
+            onClick={() => {
+              const csv = [
+                "timestamp,demand_mw,generation_mw",
+                ...series.map(
+                  (point) =>
+                    `${new Date(point.ts).toISOString()},${point.demand},${point.generation}`,
+                ),
+              ].join("\n");
+              downloadText("grid-history.csv", csv, "text/csv");
+            }}
+            type="button"
+          >
+            Export CSV
+          </button>
+          <button
+            className="rounded-md border px-2 py-1 text-xs"
+            onClick={() => {
+              setSeries([]);
+              writeHistoryToStorage([]);
+            }}
+            type="button"
+          >
+            Clear Local History
+          </button>
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="text-lg font-semibold tracking-tight">Comparative Demand View</h2>
+        <p className="text-xs text-muted-foreground">
+          This-hour vs previous-hour average demand from local persisted history.
+        </p>
+        <div className="mt-3 grid gap-3 md:grid-cols-3">
+          <div className="rounded-md border p-2">
+            <p className="text-xs text-muted-foreground">This Hour Avg</p>
+            <p className="text-xl font-semibold">
+              {comparativeSummary.thisHourDemand?.toFixed(1) ?? "--"} MW
+            </p>
+          </div>
+          <div className="rounded-md border p-2">
+            <p className="text-xs text-muted-foreground">Previous Hour Avg</p>
+            <p className="text-xl font-semibold">
+              {comparativeSummary.previousHourDemand?.toFixed(1) ?? "--"} MW
+            </p>
+          </div>
+          <div className="rounded-md border p-2">
+            <p className="text-xs text-muted-foreground">Delta</p>
+            <p className="text-xl font-semibold">
+              {comparativeSummary.delta === null ? "--" : `${comparativeSummary.delta} MW`}
+            </p>
+          </div>
+        </div>
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -280,6 +550,11 @@ export function GridEnergyDashboard() {
           </p>
         </Card>
       </div>
+
+      <GridEnergyMap
+        ewicMw={interconnectionQuery.data?.payload.ewicMw ?? null}
+        moyleMw={interconnectionQuery.data?.payload.moyleMw ?? null}
+      />
 
       <Card>
         <p className="text-sm text-muted-foreground">Gas Networks Live Map Points</p>

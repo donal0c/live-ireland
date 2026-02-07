@@ -1,4 +1,4 @@
-import { Card } from "@tremor/react";
+import { TransportDashboard } from "@/components/transport/transport-dashboard";
 
 export default function TransportPage() {
   return (
@@ -9,13 +9,7 @@ export default function TransportPage() {
           Irish Rail, Luas, and traffic telemetry scaffolding for real-time ingest.
         </p>
       </div>
-
-      <Card>
-        <h2 className="text-lg font-semibold tracking-tight">Network Status</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Route and vehicle data cards will bind to TanStack Query sources.
-        </p>
-      </Card>
+      <TransportDashboard />
     </section>
   );
 }

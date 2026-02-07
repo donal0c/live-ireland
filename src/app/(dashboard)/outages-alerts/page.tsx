@@ -1,4 +1,4 @@
-import { Card } from "@tremor/react";
+import { OutagesAlertsDashboard } from "@/components/outages/outages-alerts-dashboard";
 
 export default function OutagesAlertsPage() {
   return (
@@ -9,13 +9,7 @@ export default function OutagesAlertsPage() {
           ESB outages and active warning channels for rapid incident awareness.
         </p>
       </div>
-
-      <Card>
-        <h2 className="text-lg font-semibold tracking-tight">Active Incidents</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Alert and outage feed integration is set up for next phase.
-        </p>
-      </Card>
+      <OutagesAlertsDashboard />
     </section>
   );
 }
