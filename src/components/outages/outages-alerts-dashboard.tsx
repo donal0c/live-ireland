@@ -4,6 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import { useQuery } from "@tanstack/react-query";
 import { Badge, Card } from "@tremor/react";
+import { cellToLatLng, latLngToCell } from "h3-js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DegradedBanner } from "@/components/ui/degraded-banner";
 import { trpcClient } from "@/lib/trpc-client";
@@ -81,6 +82,28 @@ const emptyCollection: FeatureCollection = {
   features: [],
 };
 
+type LazyMapInstance = {
+  addControl: (control: unknown, position?: string) => void;
+  addLayer: (layer: unknown) => void;
+  addSource: (id: string, source: unknown) => void;
+  getSource: (id: string) => unknown;
+  on: (event: string, handler: () => void) => void;
+  remove: () => void;
+};
+
+const getGeoJsonSource = (source: unknown): { setData: (data: unknown) => void } | null => {
+  if (!source || typeof source !== "object" || !("setData" in source)) {
+    return null;
+  }
+
+  const setData = (source as { setData?: unknown }).setData;
+  if (typeof setData !== "function") {
+    return null;
+  }
+
+  return { setData: setData as (data: unknown) => void };
+};
+
 const useAdapterSnapshot = <T,>(adapterId: string, refetchInterval = 30_000) => {
   return useQuery({
     queryFn: async () => {
@@ -121,7 +144,7 @@ function OutagesMap({
   esbOutages: Array<{ lat: number; lng: number; severity: TimelineSeverity; type: string }>;
   floodAlerts: Array<{ lat: number; lng: number; station: string; value: number }>;
 }) {
-  const mapRef = useRef<any>(null);
+  const mapRef = useRef<LazyMapInstance | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [maplibreModule, setMaplibreModule] = useState<null | typeof import("maplibre-gl")>(null);
 
@@ -195,7 +218,7 @@ function OutagesMap({
       });
     });
 
-    mapRef.current = map;
+    mapRef.current = map as unknown as LazyMapInstance;
 
     return () => {
       map.remove();
@@ -208,7 +231,7 @@ function OutagesMap({
     if (!map) {
       return;
     }
-    const source = map.getSource("outages-esb");
+    const source = getGeoJsonSource(map.getSource("outages-esb"));
     if (source) {
       source.setData(esbGeoJson as never);
     }
@@ -219,7 +242,7 @@ function OutagesMap({
     if (!map) {
       return;
     }
-    const source = map.getSource("outages-flood");
+    const source = getGeoJsonSource(map.getSource("outages-flood"));
     if (source) {
       source.setData(floodGeoJson as never);
     }
@@ -441,6 +464,56 @@ export function OutagesAlertsDashboard() {
       type: outage.type,
     }));
   }, [esbMapQuery.data?.outages]);
+
+  const spatialHotspots = useMemo(() => {
+    const points = [
+      ...esbMapPoints.map((point) => ({ lat: point.lat, lng: point.lng, source: "Power" })),
+      ...floodAlerts.map((point) => ({ lat: point.lat, lng: point.lng, source: "Flood" })),
+    ];
+    const byCell = new Map<
+      string,
+      {
+        count: number;
+        floodCount: number;
+        powerCount: number;
+        sampleLat: number;
+        sampleLng: number;
+      }
+    >();
+
+    for (const point of points) {
+      const cell = latLngToCell(point.lat, point.lng, 7);
+      const current = byCell.get(cell) ?? {
+        count: 0,
+        floodCount: 0,
+        powerCount: 0,
+        sampleLat: point.lat,
+        sampleLng: point.lng,
+      };
+      current.count += 1;
+      if (point.source === "Flood") {
+        current.floodCount += 1;
+      } else {
+        current.powerCount += 1;
+      }
+      byCell.set(cell, current);
+    }
+
+    return [...byCell.entries()]
+      .map(([cell, value]) => {
+        const [lat, lng] = cellToLatLng(cell);
+        return {
+          cell,
+          count: value.count,
+          floodCount: value.floodCount,
+          powerCount: value.powerCount,
+          lat,
+          lng,
+        };
+      })
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+  }, [esbMapPoints, floodAlerts]);
   const hasAnyError = [
     esbSummaryQuery,
     warningsSummaryQuery,
@@ -556,6 +629,36 @@ export function OutagesAlertsDashboard() {
                   </p>
                 </div>
                 <Badge color={badgeColorForSeverity(entry.severity)}>{entry.severity}</Badge>
+              </div>
+            ))
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="text-lg font-semibold tracking-tight">Spatial Hotspots (H3)</h2>
+        <p className="text-xs text-muted-foreground">
+          Local H3 index aggregation of outage and flood points (resolution 7).
+        </p>
+        <div className="mt-3 space-y-2">
+          {spatialHotspots.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No hotspot data available.</p>
+          ) : (
+            spatialHotspots.map((hotspot) => (
+              <div
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2"
+                key={hotspot.cell}
+              >
+                <div>
+                  <p className="text-sm font-medium">{hotspot.count} signals in one hex</p>
+                  <p className="text-xs text-muted-foreground">
+                    {hotspot.cell} · {hotspot.lat.toFixed(3)}, {hotspot.lng.toFixed(3)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <Badge color="red">Power {hotspot.powerCount}</Badge>
+                  <Badge color="amber">Flood {hotspot.floodCount}</Badge>
+                </div>
               </div>
             ))
           )}

@@ -139,8 +139,32 @@ const toFeatureCollection = <T extends Record<string, number | string>>(
   };
 };
 
+type LazyMapInstance = {
+  addControl: (control: unknown, position?: string) => void;
+  addLayer: (layer: unknown) => void;
+  addSource: (id: string, source: unknown) => void;
+  getLayer: (id: string) => unknown;
+  getSource: (id: string) => unknown;
+  on: (event: string, handler: () => void) => void;
+  remove: () => void;
+  setLayoutProperty: (id: string, name: string, value: string) => void;
+};
+
+const getGeoJsonSource = (source: unknown): { setData: (data: unknown) => void } | null => {
+  if (!source || typeof source !== "object" || !("setData" in source)) {
+    return null;
+  }
+
+  const setData = (source as { setData?: unknown }).setData;
+  if (typeof setData !== "function") {
+    return null;
+  }
+
+  return { setData: setData as (data: unknown) => void };
+};
+
 function TransportMap({ overview }: { overview: TransportOverview | null }) {
-  const mapRef = useRef<any>(null);
+  const mapRef = useRef<LazyMapInstance | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [maplibreModule, setMaplibreModule] = useState<null | typeof import("maplibre-gl")>(null);
 
@@ -235,7 +259,7 @@ function TransportMap({ overview }: { overview: TransportOverview | null }) {
       });
     });
 
-    mapRef.current = map;
+    mapRef.current = map as unknown as LazyMapInstance;
 
     return () => {
       map.remove();
@@ -249,7 +273,7 @@ function TransportMap({ overview }: { overview: TransportOverview | null }) {
       return;
     }
 
-    const source = map.getSource("transport-trains");
+    const source = getGeoJsonSource(map.getSource("transport-trains"));
     if (source) {
       source.setData(trainsGeoJson as never);
     }
@@ -261,7 +285,7 @@ function TransportMap({ overview }: { overview: TransportOverview | null }) {
       return;
     }
 
-    const source = map.getSource("transport-bikes");
+    const source = getGeoJsonSource(map.getSource("transport-bikes"));
     if (source) {
       source.setData(bikesGeoJson as never);
     }
@@ -273,7 +297,7 @@ function TransportMap({ overview }: { overview: TransportOverview | null }) {
       return;
     }
 
-    const source = map.getSource("transport-traffic");
+    const source = getGeoJsonSource(map.getSource("transport-traffic"));
     if (source) {
       source.setData(trafficGeoJson as never);
     }

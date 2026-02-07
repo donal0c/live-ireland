@@ -30,6 +30,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "echarts": "^6.0.0",
+    "h3-js": "^4.4.0",
     "hono": "^4.11.8",
     "lucide-react": "^0.563.0",
     "maplibre-gl": "^5.17.0",
