@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import type { MouseEvent } from "react";
 
 import { SystemHealthBadge } from "@/components/layout/system-health-badge";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -11,6 +12,34 @@ import { dashboardTabs } from "@/lib/navigation";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleTransitionNavigation = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      pathname === href
+    ) {
+      return;
+    }
+
+    const doc = document as Document & {
+      startViewTransition?: (callback: () => void | Promise<void>) => void;
+    };
+
+    if (!doc.startViewTransition) {
+      return;
+    }
+
+    event.preventDefault();
+    doc.startViewTransition(() => {
+      router.push(href);
+    });
+  };
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,_var(--color-muted),_transparent_45%),linear-gradient(to_bottom,var(--color-background),var(--color-background))]">
@@ -40,7 +69,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   key={tab.href}
                   variant={isActive ? "default" : "ghost"}
                 >
-                  <Link href={tab.href}>
+                  <Link
+                    href={tab.href}
+                    onClick={(event) => handleTransitionNavigation(event, tab.href)}
+                  >
                     <Icon className="size-4" />
                     <span className="text-left">
                       <span className="block text-sm font-medium">{tab.label}</span>
@@ -82,7 +114,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                     size="sm"
                     variant={isActive ? "default" : "outline"}
                   >
-                    <Link href={tab.href}>{tab.label}</Link>
+                    <Link
+                      href={tab.href}
+                      onClick={(event) => handleTransitionNavigation(event, tab.href)}
+                    >
+                      {tab.label}
+                    </Link>
                   </Button>
                 );
               })}
