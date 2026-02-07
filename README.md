@@ -70,6 +70,7 @@ npm run build
 npm run audit:deps
 # with dev stack running in another terminal:
 npm run a11y:scan
+SSE_TEST_CLIENTS=60 SSE_TEST_DURATION_MS=15000 npm run load:sse
 ```
 
 ## Research and decisions

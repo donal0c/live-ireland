@@ -1,3 +1,4 @@
+import { EirgridLivePanel } from "@/components/grid/eirgrid-live-panel";
 import { GridEnergyDashboard } from "@/components/grid/grid-energy-dashboard";
 
 export default function GridEnergyPage() {
@@ -11,6 +12,7 @@ export default function GridEnergyPage() {
       </div>
 
       <GridEnergyDashboard />
+      <EirgridLivePanel />
     </section>
   );
 }

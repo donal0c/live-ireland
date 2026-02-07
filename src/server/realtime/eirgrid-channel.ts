@@ -9,6 +9,11 @@ export class EirgridDemandChannel {
   private readonly emitter = new EventEmitter();
   private readonly history: EirgridDemandSnapshot[] = [];
 
+  constructor() {
+    // SSE fan-out can legitimately create >10 listeners in local/production usage.
+    this.emitter.setMaxListeners(1_000);
+  }
+
   publish(snapshot: EirgridDemandSnapshot) {
     this.history.push(snapshot);
 
