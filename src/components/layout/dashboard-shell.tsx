@@ -50,7 +50,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         Skip to main content
       </a>
       <div className="mx-auto flex min-h-screen max-w-7xl gap-4 p-3 sm:p-4 md:gap-6 md:p-6">
-        <aside className="hidden w-72 shrink-0 rounded-2xl border bg-card/90 p-4 backdrop-blur lg:flex lg:flex-col">
+        <aside className="hidden w-80 shrink-0 rounded-2xl border bg-card/90 p-4 backdrop-blur lg:flex lg:flex-col">
           <div className="space-y-1">
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
               Live Ireland
@@ -65,18 +65,27 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               return (
                 <Button
                   asChild
-                  className="h-auto w-full justify-start gap-3 px-3 py-3"
+                  className="h-auto w-full min-w-0 justify-start gap-3 whitespace-normal px-3 py-3"
                   key={tab.href}
                   variant={isActive ? "default" : "ghost"}
                 >
                   <Link
+                    className="flex w-full min-w-0 items-start gap-3"
                     href={tab.href}
                     onClick={(event) => handleTransitionNavigation(event, tab.href)}
                   >
-                    <Icon className="size-4" />
-                    <span className="text-left">
-                      <span className="block text-sm font-medium">{tab.label}</span>
-                      <span className="block text-xs text-muted-foreground">{tab.description}</span>
+                    <Icon className="mt-0.5 size-4 shrink-0" />
+                    <span className="min-w-0 text-left">
+                      <span className="block break-words text-sm font-medium leading-5">
+                        {tab.label}
+                      </span>
+                      <span
+                        className={`mt-0.5 block break-words text-xs leading-4 ${
+                          isActive ? "text-foreground/80" : "text-muted-foreground"
+                        }`}
+                      >
+                        {tab.description}
+                      </span>
                     </span>
                   </Link>
                 </Button>
