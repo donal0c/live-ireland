@@ -3,8 +3,9 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { useQuery } from "@tanstack/react-query";
-import { Badge, Card } from "@tremor/react";
+import { Badge } from "@tremor/react";
 import { cellToLatLng, latLngToCell } from "h3-js";
+import { AlertOctagon, AlertTriangle, CloudLightning, Info, MapPin, Zap } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DegradedBanner } from "@/components/ui/degraded-banner";
 import { trpcClient } from "@/lib/trpc-client";
@@ -524,39 +525,69 @@ export function OutagesAlertsDashboard() {
   ].some((query) => query.isError);
 
   return (
-    <section className="dashboard-container space-y-4">
+    <section className="dashboard-container space-y-6">
       {hasAnyError ? (
         <DegradedBanner message="One or more outage/alert feeds are unavailable. Timeline and map are showing partial data." />
       ) : null}
       <div className="dashboard-kpi-grid grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <Card>
-          <p className="text-sm text-muted-foreground">ESB Outages</p>
-          <p className="mt-2 text-2xl font-semibold">
+        {/* ESB Outages */}
+        <div className="group kpi-card rounded-xl border bg-card/80 p-4 backdrop-blur transition-all duration-200 hover:bg-card/95 hover:shadow-md" style={{ "--kpi-accent": "#ef4444" } as React.CSSProperties}>
+          <div className="flex items-start justify-between">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">ESB Outages</p>
+            <div className="rounded-lg bg-red-500/10 p-1.5">
+              <Zap className="h-4 w-4 text-red-500" />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight metric-value">
             {esbSummaryQuery.data?.payload.outageCount ?? "--"}
           </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-muted-foreground">Weather Warnings</p>
-          <p className="mt-2 text-2xl font-semibold">
+        </div>
+        {/* Weather Warnings */}
+        <div className="group kpi-card rounded-xl border bg-card/80 p-4 backdrop-blur transition-all duration-200 hover:bg-card/95 hover:shadow-md" style={{ "--kpi-accent": "#f59e0b" } as React.CSSProperties}>
+          <div className="flex items-start justify-between">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Weather Warnings</p>
+            <div className="rounded-lg bg-amber-500/10 p-1.5">
+              <CloudLightning className="h-4 w-4 text-amber-500" />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight metric-value">
             {warningsSummaryQuery.data?.payload.warningCount ?? "--"}
           </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-muted-foreground">Critical Alerts</p>
-          <p className="mt-2 text-2xl font-semibold">{counts.critical}</p>
-        </Card>
-        <Card>
-          <p className="text-sm text-muted-foreground">Warning Alerts</p>
-          <p className="mt-2 text-2xl font-semibold">{counts.warning}</p>
-        </Card>
-        <Card>
-          <p className="text-sm text-muted-foreground">Info Alerts</p>
-          <p className="mt-2 text-2xl font-semibold">{counts.info}</p>
-        </Card>
+        </div>
+        {/* Critical Alerts */}
+        <div className="group kpi-card rounded-xl border bg-card/80 p-4 backdrop-blur transition-all duration-200 hover:bg-card/95 hover:shadow-md" style={{ "--kpi-accent": "#dc2626" } as React.CSSProperties}>
+          <div className="flex items-start justify-between">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Critical Alerts</p>
+            <div className="rounded-lg bg-red-600/10 p-1.5">
+              <AlertOctagon className="h-4 w-4 text-red-600" />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight metric-value">{counts.critical}</p>
+        </div>
+        {/* Warning Alerts */}
+        <div className="group kpi-card rounded-xl border bg-card/80 p-4 backdrop-blur transition-all duration-200 hover:bg-card/95 hover:shadow-md" style={{ "--kpi-accent": "#f97316" } as React.CSSProperties}>
+          <div className="flex items-start justify-between">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Warning Alerts</p>
+            <div className="rounded-lg bg-orange-500/10 p-1.5">
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight metric-value">{counts.warning}</p>
+        </div>
+        {/* Info Alerts */}
+        <div className="group kpi-card rounded-xl border bg-card/80 p-4 backdrop-blur transition-all duration-200 hover:bg-card/95 hover:shadow-md" style={{ "--kpi-accent": "#3b82f6" } as React.CSSProperties}>
+          <div className="flex items-start justify-between">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Info Alerts</p>
+            <div className="rounded-lg bg-blue-500/10 p-1.5">
+              <Info className="h-4 w-4 text-blue-500" />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight metric-value">{counts.info}</p>
+        </div>
       </div>
 
-      <Card>
-        <h2 className="text-lg font-semibold tracking-tight">Unified Alert Map</h2>
+      <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
+        <h2 className="text-lg font-bold tracking-tight">Unified Alert Map</h2>
         <p className="text-xs text-muted-foreground">
           ESB outage locations and OPW flood-threshold stations.
         </p>
@@ -565,7 +596,7 @@ export function OutagesAlertsDashboard() {
             <OutagesMap esbOutages={esbMapPoints} floodAlerts={floodAlerts} />
           ) : (
             <button
-              className="rounded-md border px-3 py-2 text-sm"
+              className="btn-glow rounded-lg border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
               onClick={() => setShowOutagesMap(true)}
               type="button"
             >
@@ -573,18 +604,18 @@ export function OutagesAlertsDashboard() {
             </button>
           )}
         </div>
-      </Card>
+      </div>
 
-      <Card>
+      <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold tracking-tight">Unified Alert Timeline</h2>
+          <h2 className="text-lg font-bold tracking-tight">Unified Alert Timeline</h2>
           <div className="flex items-center gap-2">
             <label className="sr-only" htmlFor="timeline-severity-filter">
               Filter timeline by severity
             </label>
             <select
               id="timeline-severity-filter"
-              className="rounded-md border bg-background px-2 py-1 text-sm"
+              className="rounded-lg border bg-card px-3 py-2 text-sm transition-colors hover:bg-accent"
               onChange={(event) =>
                 setSeverityFilter(event.target.value as "all" | TimelineSeverity)
               }
@@ -600,7 +631,7 @@ export function OutagesAlertsDashboard() {
             </label>
             <select
               id="timeline-region-filter"
-              className="rounded-md border bg-background px-2 py-1 text-sm"
+              className="rounded-lg border bg-card px-3 py-2 text-sm transition-colors hover:bg-accent"
               onChange={(event) => setRegionFilter(event.target.value)}
               value={regionFilter}
             >
@@ -618,12 +649,12 @@ export function OutagesAlertsDashboard() {
           ) : (
             filteredTimeline.slice(0, 60).map((entry) => (
               <div
-                className="flex items-center justify-between gap-3 rounded-md border p-2"
+                className="flex items-center justify-between gap-3 rounded-xl border bg-card/80 p-3 transition-colors hover:bg-card/95"
                 key={entry.id}
               >
                 <div>
                   <p className="text-sm font-medium">{entry.title}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                     {entry.type} · {entry.region} ·{" "}
                     {new Date(entry.time).toLocaleTimeString("en-IE")}
                   </p>
@@ -633,10 +664,10 @@ export function OutagesAlertsDashboard() {
             ))
           )}
         </div>
-      </Card>
+      </div>
 
-      <Card>
-        <h2 className="text-lg font-semibold tracking-tight">Spatial Hotspots (H3)</h2>
+      <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
+        <h2 className="text-lg font-bold tracking-tight">Spatial Hotspots (H3)</h2>
         <p className="text-xs text-muted-foreground">
           Local H3 index aggregation of outage and flood points (resolution 7).
         </p>
@@ -646,12 +677,13 @@ export function OutagesAlertsDashboard() {
           ) : (
             spatialHotspots.map((hotspot) => (
               <div
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card/80 p-3 transition-colors hover:bg-card/95"
                 key={hotspot.cell}
               >
                 <div>
                   <p className="text-sm font-medium">{hotspot.count} signals in one hex</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                    <MapPin className="mr-1 inline-block h-3 w-3" />
                     {hotspot.cell} · {hotspot.lat.toFixed(3)}, {hotspot.lng.toFixed(3)}
                   </p>
                 </div>
@@ -663,7 +695,7 @@ export function OutagesAlertsDashboard() {
             ))
           )}
         </div>
-      </Card>
+      </div>
     </section>
   );
 }

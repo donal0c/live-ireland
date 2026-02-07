@@ -1,7 +1,16 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Badge, Card } from "@tremor/react";
+import { Badge } from "@tremor/react";
+import {
+  Activity,
+  AlertTriangle,
+  CloudRain,
+  Droplets,
+  Thermometer,
+  Waves,
+  Wind,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DegradedBanner } from "@/components/ui/degraded-banner";
@@ -118,6 +127,46 @@ const badgeForLevel = (level: string) => {
   return "gray" as const;
 };
 
+function KpiCard({
+  icon: Icon,
+  label,
+  value,
+  unit,
+  subtext,
+  accentColor,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string | number;
+  unit?: string;
+  subtext?: string;
+  accentColor?: string;
+}) {
+  return (
+    <div className="kpi-card group rounded-xl border bg-card/80 p-4 backdrop-blur transition-all duration-200 hover:bg-card/95 hover:shadow-md">
+      <div className="flex items-start justify-between">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+        <div
+          className="flex h-8 w-8 items-center justify-center rounded-lg opacity-60 transition-opacity group-hover:opacity-100"
+          style={{ backgroundColor: `${accentColor ?? "var(--kpi-accent)"}15` }}
+        >
+          <Icon
+            className="h-4 w-4"
+            style={{ color: accentColor ?? "var(--kpi-accent)" }}
+          />
+        </div>
+      </div>
+      <div className="mt-2 metric-value">
+        <span className="text-2xl font-bold tabular-nums tracking-tight">{value}</span>
+        {unit ? <span className="ml-1 text-sm font-medium text-muted-foreground">{unit}</span> : null}
+      </div>
+      {subtext ? (
+        <p className="mt-1 text-[11px] text-muted-foreground">{subtext}</p>
+      ) : null}
+    </div>
+  );
+}
+
 export function WeatherWaterDashboard() {
   const observationQuery = useAdapterSnapshot<MetObservationPayload>(
     "met-observations-dublinairport",
@@ -207,66 +256,80 @@ export function WeatherWaterDashboard() {
   const warnings = warningsQuery.data?.payload;
 
   return (
-    <section className="dashboard-container space-y-4">
+    <section className="dashboard-container space-y-6">
       {hasAnyError ? (
         <DegradedBanner message="One or more weather/water sources are unavailable. Map and metrics are showing partial data." />
       ) : null}
+
+      {/* ─── KPI Cards ─── */}
       <div className="dashboard-kpi-grid grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <Card>
-          <p className="text-sm text-muted-foreground">Temperature (Dublin Airport)</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {observationQuery.data?.payload.temperature ?? "--"} C
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-muted-foreground">Humidity</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {observationQuery.data?.payload.humidity ?? "--"} %
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-muted-foreground">Wind Speed</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {observationQuery.data?.payload.windSpeed ?? "--"} kt
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-muted-foreground">Active Warnings</p>
-          <p className="mt-2 text-2xl font-semibold">{warnings?.warningCount ?? "--"}</p>
-          <p className="text-xs text-muted-foreground">
-            Y: {warnings?.yellowCount ?? "--"} O: {warnings?.orangeCount ?? "--"} R:{" "}
-            {warnings?.redCount ?? "--"}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-muted-foreground">OPW Stations</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {opwQuery.data?.payload.featureCount ?? "--"}
-          </p>
-        </Card>
+        <KpiCard
+          icon={Thermometer}
+          label="Temperature (Dublin Airport)"
+          value={observationQuery.data?.payload.temperature ?? "--"}
+          unit="C"
+          accentColor="#ef4444"
+        />
+        <KpiCard
+          icon={Droplets}
+          label="Humidity"
+          value={observationQuery.data?.payload.humidity ?? "--"}
+          unit="%"
+          accentColor="#3b82f6"
+        />
+        <KpiCard
+          icon={Wind}
+          label="Wind Speed"
+          value={observationQuery.data?.payload.windSpeed ?? "--"}
+          unit="kt"
+          accentColor="#8b5cf6"
+        />
+        <KpiCard
+          icon={AlertTriangle}
+          label="Active Warnings"
+          value={warnings?.warningCount ?? "--"}
+          subtext={`Y: ${warnings?.yellowCount ?? "--"} O: ${warnings?.orangeCount ?? "--"} R: ${warnings?.redCount ?? "--"}`}
+          accentColor="#f59e0b"
+        />
+        <KpiCard
+          icon={Waves}
+          label="OPW Stations"
+          value={opwQuery.data?.payload.featureCount ?? "--"}
+          accentColor="#14b8a6"
+        />
       </div>
 
-      <Card>
-        <h2 className="text-lg font-semibold tracking-tight">Weather Signal Trend</h2>
-        <p className="text-xs text-muted-foreground">
-          Temperature, humidity, and wind trend from live observations.
-        </p>
+      {/* ─── Weather Signal Trend ─── */}
+      <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold tracking-tight">Weather Signal Trend</h2>
+            <p className="text-xs text-muted-foreground">
+              Temperature, humidity, and wind trend from live observations.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="live-dot" />
+            <span className="text-xs font-medium text-muted-foreground">Streaming</span>
+          </div>
+        </div>
         {showWeatherTrend ? (
           <EChart option={trendOption} />
         ) : (
           <button
-            className="mt-3 rounded-md border px-3 py-2 text-sm"
+            className="btn-glow mt-4 rounded-lg border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
             onClick={() => setShowWeatherTrend(true)}
             type="button"
           >
             Load trend chart
           </button>
         )}
-      </Card>
+      </div>
 
+      {/* ─── Warnings & Water/Marine/Air Split ─── */}
       <div className="dashboard-split-grid grid gap-4 lg:grid-cols-2">
-        <Card>
-          <h2 className="text-lg font-semibold tracking-tight">Active Warning Highlights</h2>
+        <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
+          <h2 className="text-lg font-bold tracking-tight">Active Warning Highlights</h2>
           <div className="mt-3 space-y-2">
             {(warnings?.highlights?.length ?? 0) === 0 ? (
               <p className="text-sm text-muted-foreground">No active warning highlights.</p>
@@ -287,10 +350,10 @@ export function WeatherWaterDashboard() {
               ))
             )}
           </div>
-        </Card>
+        </div>
 
-        <Card>
-          <h2 className="text-lg font-semibold tracking-tight">Water, Marine & Air Quality</h2>
+        <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
+          <h2 className="text-lg font-bold tracking-tight">Water, Marine & Air Quality</h2>
           <div className="mt-3 space-y-2 text-sm">
             <p>
               Marine Wave Height:{" "}
@@ -310,25 +373,26 @@ export function WeatherWaterDashboard() {
               Sample stations: {epaQuery.data?.payload.sampleStations?.join(", ") ?? "--"}
             </p>
           </div>
-        </Card>
+        </div>
       </div>
 
+      {/* ─── Weather & Water Map ─── */}
       {showWeatherMap ? (
         <WeatherWaterMap />
       ) : (
-        <Card>
-          <h2 className="text-lg font-semibold tracking-tight">Weather & Water Map</h2>
+        <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
+          <h2 className="text-lg font-bold tracking-tight">Weather & Water Map</h2>
           <p className="text-xs text-muted-foreground">
             OPW flood-risk points, Met warning polygons, EPA stations, and radar overlay.
           </p>
           <button
-            className="mt-3 rounded-md border px-3 py-2 text-sm"
+            className="btn-glow mt-4 rounded-lg border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
             onClick={() => setShowWeatherMap(true)}
             type="button"
           >
             Load map
           </button>
-        </Card>
+        </div>
       )}
     </section>
   );

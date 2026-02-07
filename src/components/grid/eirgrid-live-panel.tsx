@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { AreaChart, Card } from "@tremor/react";
+import { AreaChart } from "@tremor/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { trpcClient } from "@/lib/trpc-client";
@@ -116,29 +116,32 @@ export function EirgridLivePanel() {
 
   if (!enabled) {
     return (
-      <Card className="mt-4">
+      <div className="mt-6 rounded-xl border bg-card/60 p-5 backdrop-blur">
         <div className="space-y-2">
-          <h2 className="text-lg font-semibold tracking-tight">EirGrid Demand Stream (SSE)</h2>
-          <p className="text-xs text-muted-foreground">
+          <h2 className="text-lg font-bold tracking-tight">EirGrid Demand Stream (SSE)</h2>
+          <p className="text-xs font-medium text-muted-foreground">
             Enable the live demand stream to start subscription updates.
           </p>
           <button
-            className="rounded-md border px-3 py-2 text-sm"
+            className="btn-glow rounded-lg border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
             onClick={() => setEnabled(true)}
             type="button"
           >
             Start stream
           </button>
         </div>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card className="mt-4">
+    <div className="mt-6 rounded-xl border bg-card/60 p-5 backdrop-blur">
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-lg font-semibold tracking-tight">EirGrid Demand Stream (SSE)</h2>
-        <p className="text-xs text-muted-foreground">
+        <h2 className="text-lg font-bold tracking-tight">EirGrid Demand Stream (SSE)</h2>
+        <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          {status === "live" && (
+            <span className="live-dot" />
+          )}
           Status: {status}
           {retryCount > 0 ? ` (retry ${retryCount})` : ""}
         </p>
@@ -151,14 +154,14 @@ export function EirgridLivePanel() {
         noDataText="Waiting for stream data"
       />
 
-      <div className="mt-4 border-t pt-3">
-        <p className="text-xs text-muted-foreground">
+      <div className="mt-4 border-t border-border/60 pt-3">
+        <p className="text-xs font-medium text-muted-foreground">
           Adapter Health:{" "}
           {adapterStatusQuery.data
             ? `${adapterStatusQuery.data.filter((item) => item.state !== "degraded").length}/${adapterStatusQuery.data.length} healthy`
             : "loading"}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-1 text-xs font-medium text-muted-foreground">
           Last snapshot:{" "}
           {lastSnapshotAt
             ? new Date(lastSnapshotAt).toLocaleTimeString("en-IE", {
@@ -169,6 +172,6 @@ export function EirgridLivePanel() {
             : "waiting"}
         </p>
       </div>
-    </Card>
+    </div>
   );
 }

@@ -1,11 +1,16 @@
+import { AlertTriangle } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 
 export function DegradedBanner({ message }: { message: string }) {
   return (
-    <div className="rounded-md border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-950/40">
-      <div className="flex items-center gap-2">
-        <Badge variant="outline">Degraded</Badge>
-        <p className="text-sm text-amber-900 dark:text-amber-100">{message}</p>
+    <div className="rounded-xl border border-amber-400/40 bg-amber-50/80 p-4 backdrop-blur dark:border-amber-500/20 dark:bg-amber-950/30">
+      <div className="flex items-center gap-3">
+        <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+        <Badge variant="outline" className="text-[11px] font-semibold uppercase tracking-wider">
+          Degraded
+        </Badge>
+        <p className="text-sm text-amber-800 dark:text-amber-200">{message}</p>
       </div>
     </div>
   );

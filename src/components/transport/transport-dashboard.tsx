@@ -3,7 +3,8 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { useQuery } from "@tanstack/react-query";
-import { Badge, Card } from "@tremor/react";
+import { Badge } from "@tremor/react";
+import { Bike, MapPin, Train, TramFront, TrafficCone } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DegradedBanner } from "@/components/ui/degraded-banner";
 import { trpcClient } from "@/lib/trpc-client";
@@ -162,6 +163,46 @@ const getGeoJsonSource = (source: unknown): { setData: (data: unknown) => void }
 
   return { setData: setData as (data: unknown) => void };
 };
+
+function KpiCard({
+  icon: Icon,
+  label,
+  value,
+  unit,
+  subtext,
+  accentColor,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string | number;
+  unit?: string;
+  subtext?: string;
+  accentColor?: string;
+}) {
+  return (
+    <div className="kpi-card group rounded-xl border bg-card/80 p-4 backdrop-blur transition-all duration-200 hover:bg-card/95 hover:shadow-md">
+      <div className="flex items-start justify-between">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+        <div
+          className="flex h-8 w-8 items-center justify-center rounded-lg opacity-60 transition-opacity group-hover:opacity-100"
+          style={{ backgroundColor: `${accentColor ?? "var(--kpi-accent)"}15` }}
+        >
+          <Icon
+            className="h-4 w-4"
+            style={{ color: accentColor ?? "var(--kpi-accent)" }}
+          />
+        </div>
+      </div>
+      <div className="mt-2 metric-value">
+        <span className="text-2xl font-bold tabular-nums tracking-tight">{value}</span>
+        {unit ? <span className="ml-1 text-sm font-medium text-muted-foreground">{unit}</span> : null}
+      </div>
+      {subtext ? (
+        <p className="mt-1 text-[11px] text-muted-foreground">{subtext}</p>
+      ) : null}
+    </div>
+  );
+}
 
 function TransportMap({ overview }: { overview: TransportOverview | null }) {
   const mapRef = useRef<LazyMapInstance | null>(null);
@@ -332,10 +373,10 @@ function TransportMap({ overview }: { overview: TransportOverview | null }) {
   }, [showTraffic]);
 
   return (
-    <Card>
+    <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">Transport Operations Map</h2>
+          <h2 className="text-lg font-bold tracking-tight">Transport Operations Map</h2>
           <p className="text-xs text-muted-foreground">
             Irish Rail live positions, Dublin Bikes availability, and TII traffic sites.
           </p>
@@ -360,8 +401,8 @@ function TransportMap({ overview }: { overview: TransportOverview | null }) {
           </label>
         </div>
       </div>
-      <div className="mt-3 h-[440px] overflow-hidden rounded-md border" ref={containerRef} />
-    </Card>
+      <div className="mt-3 h-[440px] overflow-hidden rounded-xl border" ref={containerRef} />
+    </div>
   );
 }
 
@@ -469,56 +510,58 @@ export function TransportDashboard() {
   ].some((query) => query.isError);
 
   return (
-    <section className="dashboard-container space-y-4">
+    <section className="dashboard-container space-y-6">
       {hasAnyError ? (
         <DegradedBanner message="One or more transport sources are unavailable. Some map layers and boards may be stale." />
       ) : null}
       <div className="dashboard-kpi-grid grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <Card>
-          <p className="text-sm text-muted-foreground">Active Trains</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {irishRailQuery.data?.payload.trainCount ?? "--"}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-muted-foreground">Luas Forecast (MAR)</p>
-          <p className="mt-2 text-2xl font-semibold">{luasQuery.data?.payload.tramsDue ?? "--"}</p>
-          <div className="mt-2">
-            <Badge color={luasDataStatus === "LIVE" ? "green" : "amber"}>{luasDataStatus}</Badge>
-          </div>
-        </Card>
-        <Card>
-          <p className="text-sm text-muted-foreground">Dublin Bikes Availability</p>
-          <p className="mt-2 text-2xl font-semibold">{bikeAvailability}%</p>
-        </Card>
-        <Card>
-          <p className="text-sm text-muted-foreground">Dublin Bikes Stations</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {bikesQuery.data?.payload.stationCount ?? "--"}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-muted-foreground">TII TMU Sites</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {trafficQuery.data?.payload.siteCount ?? "--"}
-          </p>
-        </Card>
+        <KpiCard
+          icon={Train}
+          label="Active Trains"
+          value={irishRailQuery.data?.payload.trainCount ?? "--"}
+          accentColor="#3b82f6"
+        />
+        <KpiCard
+          icon={TramFront}
+          label="Luas Forecast (MAR)"
+          value={luasQuery.data?.payload.tramsDue ?? "--"}
+          subtext={luasDataStatus === "LIVE" ? "Live data" : "Limited data"}
+          accentColor="#22c55e"
+        />
+        <KpiCard
+          icon={Bike}
+          label="Dublin Bikes Availability"
+          value={`${bikeAvailability}%`}
+          accentColor="#8b5cf6"
+        />
+        <KpiCard
+          icon={MapPin}
+          label="Dublin Bikes Stations"
+          value={bikesQuery.data?.payload.stationCount ?? "--"}
+          accentColor="#6366f1"
+        />
+        <KpiCard
+          icon={TrafficCone}
+          label="TII TMU Sites"
+          value={trafficQuery.data?.payload.siteCount ?? "--"}
+          accentColor="#14b8a6"
+        />
       </div>
 
-      <Card>
+      <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Luas Forecast & Line Status</h2>
+            <h2 className="text-lg font-bold tracking-tight">Luas Forecast & Line Status</h2>
             <p className="text-xs text-muted-foreground">
               Live arrivals from Luas forecast feed using stop-level polling.
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-xs text-muted-foreground" htmlFor="luas-stop-selector">
+            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="luas-stop-selector">
               Stop
             </label>
             <select
-              className="rounded-md border bg-background px-2 py-1 text-sm"
+              className="rounded-lg border bg-card px-3 py-2 text-sm transition-colors hover:bg-accent"
               id="luas-stop-selector"
               onChange={(event) => setLuasStopCode(event.target.value)}
               value={luasStopCode}
@@ -533,8 +576,8 @@ export function TransportDashboard() {
         </div>
 
         <div className="mt-3 grid gap-3 md:grid-cols-3">
-          <div className="rounded-md border p-2">
-            <p className="text-xs text-muted-foreground">Green Line</p>
+          <div className="rounded-xl border bg-card/80 p-3">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Green Line</p>
             <div className="mt-1">
               <Badge color={greenLineNormal ? "green" : "amber"}>
                 {greenLineNormal ? "Normal" : "Disruption/Unknown"}
@@ -544,8 +587,8 @@ export function TransportDashboard() {
               {greenLineStatusQuery.data?.message ?? "--"}
             </p>
           </div>
-          <div className="rounded-md border p-2">
-            <p className="text-xs text-muted-foreground">Red Line</p>
+          <div className="rounded-xl border bg-card/80 p-3">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Red Line</p>
             <div className="mt-1">
               <Badge color={redLineNormal ? "green" : "amber"}>
                 {redLineNormal ? "Normal" : "Disruption/Unknown"}
@@ -555,8 +598,8 @@ export function TransportDashboard() {
               {redLineStatusQuery.data?.message ?? "--"}
             </p>
           </div>
-          <div className="rounded-md border p-2">
-            <p className="text-xs text-muted-foreground">Selected Stop</p>
+          <div className="rounded-xl border bg-card/80 p-3">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Selected Stop</p>
             <p className="text-sm font-medium">{selectedLuasQuery.data?.stop ?? "--"}</p>
             <p className="text-xs text-muted-foreground">
               {selectedLuasQuery.data?.message ?? "--"}
@@ -566,7 +609,7 @@ export function TransportDashboard() {
 
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           {(selectedLuasQuery.data?.directions ?? []).map((direction) => (
-            <div className="rounded-md border p-2" key={direction.name}>
+            <div className="rounded-xl border bg-card/80 p-3" key={direction.name}>
               <p className="text-sm font-medium">{direction.name}</p>
               <div className="mt-2 space-y-2">
                 {direction.trams.length === 0 ? (
@@ -574,7 +617,7 @@ export function TransportDashboard() {
                 ) : (
                   direction.trams.slice(0, 6).map((tram) => (
                     <div
-                      className="flex items-center justify-between text-sm"
+                      className="flex items-center justify-between rounded-xl border bg-card/80 p-3 text-sm"
                       key={`${direction.name}-${tram.destination}-${tram.dueMins}`}
                     >
                       <span>{tram.destination}</span>
@@ -586,35 +629,35 @@ export function TransportDashboard() {
             </div>
           ))}
         </div>
-      </Card>
+      </div>
 
       {showTransportMap ? (
         <TransportMap overview={overviewQuery.data ?? null} />
       ) : (
-        <Card>
-          <h2 className="text-lg font-semibold tracking-tight">Transport Operations Map</h2>
+        <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
+          <h2 className="text-lg font-bold tracking-tight">Transport Operations Map</h2>
           <p className="text-xs text-muted-foreground">
             Irish Rail live positions, Dublin Bikes availability, and TII traffic sites.
           </p>
           <button
-            className="mt-3 rounded-md border px-3 py-2 text-sm"
+            className="btn-glow mt-3 rounded-lg border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
             onClick={() => setShowTransportMap(true)}
             type="button"
           >
             Load map
           </button>
-        </Card>
+        </div>
       )}
 
       <div className="dashboard-split-grid grid gap-4 lg:grid-cols-2">
-        <Card>
-          <h2 className="text-lg font-semibold tracking-tight">Irish Rail Departure Board</h2>
+        <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
+          <h2 className="text-lg font-bold tracking-tight">Irish Rail Departure Board</h2>
           <div className="mt-2 flex items-center gap-2">
-            <label className="text-xs text-muted-foreground" htmlFor="irish-rail-station-selector">
+            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="irish-rail-station-selector">
               Station
             </label>
             <select
-              className="rounded-md border bg-background px-2 py-1 text-sm"
+              className="rounded-lg border bg-card px-3 py-2 text-sm transition-colors hover:bg-accent"
               id="irish-rail-station-selector"
               onChange={(event) => setStationCode(event.target.value)}
               value={stationCode}
@@ -633,7 +676,7 @@ export function TransportDashboard() {
             ) : (
               departuresQuery.data?.departures.slice(0, 8).map((departure) => (
                 <div
-                  className="flex items-center justify-between gap-3 rounded-md border p-2"
+                  className="flex items-center justify-between gap-3 rounded-xl border bg-card/80 p-3"
                   key={`${departure.code}-${departure.expectedDeparture}-${departure.destination}`}
                 >
                   <div>
@@ -649,10 +692,10 @@ export function TransportDashboard() {
               ))
             )}
           </div>
-        </Card>
+        </div>
 
-        <Card>
-          <h2 className="text-lg font-semibold tracking-tight">Traffic Site Sample</h2>
+        <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
+          <h2 className="text-lg font-bold tracking-tight">Traffic Site Sample</h2>
           <p className="mt-1 text-xs text-muted-foreground">
             Representative TMU site IDs from the latest transport ingest.
           </p>
@@ -666,7 +709,7 @@ export function TransportDashboard() {
               <p className="text-sm text-muted-foreground">No sample sites available.</p>
             ) : null}
           </div>
-        </Card>
+        </div>
       </div>
     </section>
   );

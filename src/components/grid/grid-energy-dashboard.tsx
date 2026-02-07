@@ -3,6 +3,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@tremor/react";
 import * as echarts from "echarts";
+import {
+  Activity,
+  Cable,
+  DollarSign,
+  Factory,
+  Flame,
+  Gauge,
+  Leaf,
+  Wind,
+  Zap,
+  ZapOff,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -172,6 +184,46 @@ function EChart({ option, className }: { option: echarts.EChartsOption; classNam
   return <div className={cn("h-64 w-full", className)} ref={rootRef} />;
 }
 
+function KpiCard({
+  icon: Icon,
+  label,
+  value,
+  unit,
+  subtext,
+  accentColor,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string | number;
+  unit?: string | undefined;
+  subtext?: string | undefined;
+  accentColor?: string | undefined;
+}) {
+  return (
+    <div className="kpi-card group rounded-xl border bg-card/80 p-4 backdrop-blur transition-all duration-200 hover:bg-card/95 hover:shadow-md">
+      <div className="flex items-start justify-between">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+        <div
+          className="flex h-8 w-8 items-center justify-center rounded-lg opacity-60 transition-opacity group-hover:opacity-100"
+          style={{ backgroundColor: `${accentColor ?? "var(--kpi-accent)"}15` }}
+        >
+          <Icon
+            className="h-4 w-4"
+            style={{ color: accentColor ?? "var(--kpi-accent)" }}
+          />
+        </div>
+      </div>
+      <div className="mt-2 metric-value">
+        <span className="text-2xl font-bold tabular-nums tracking-tight">{value}</span>
+        {unit ? <span className="ml-1 text-sm font-medium text-muted-foreground">{unit}</span> : null}
+      </div>
+      {subtext ? (
+        <p className="mt-1 text-[11px] text-muted-foreground">{subtext}</p>
+      ) : null}
+    </div>
+  );
+}
+
 export function GridEnergyDashboard() {
   const demandQuery = useAdapterSnapshot<DemandSnapshot>("eirgrid-demand", 10_000);
   const generationQuery = useAdapterSnapshot<ScalarPayload>("eirgrid-generation", 15_000);
@@ -240,52 +292,61 @@ export function GridEnergyDashboard() {
     generationQuery.data?.payload?.value,
   ]);
 
-  const gaugeOption = useMemo<echarts.EChartsOption>(() => {
-    const demand = demandQuery.data?.payload?.demandMw ?? 0;
-    const generation = generationQuery.data?.payload?.value ?? 0;
-    const wind = windQuery.data?.payload?.value ?? 0;
-    const frequency = frequencyQuery.data?.payload?.value ?? 0;
+  const demand = demandQuery.data?.payload?.demandMw ?? 0;
+  const generation = generationQuery.data?.payload?.value ?? 0;
+  const wind = windQuery.data?.payload?.value ?? 0;
+  const frequency = frequencyQuery.data?.payload?.value ?? 0;
+  const windPercent = generation > 0 ? Math.min(100, (wind / generation) * 100) : 0;
 
-    const windPercent = generation > 0 ? Math.min(100, (wind / generation) * 100) : 0;
+  const gaugeOption = useMemo<echarts.EChartsOption>(() => {
+    const isDark = typeof window !== "undefined" && document.documentElement.classList.contains("dark");
+    const axisLineColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb";
+    const textColor = isDark ? "#e0e0e8" : "#1f2937";
+    const pointerColor = isDark ? "#a0a0b0" : "#374151";
+    const anchorColor = isDark ? "#a0a0b0" : "#374151";
 
     const baseGauge: echarts.GaugeSeriesOption = {
       anchor: {
         show: true,
-        itemStyle: {
-          color: "#374151",
-        },
-        size: 14,
+        itemStyle: { color: anchorColor },
+        size: 12,
       },
       axisLabel: { show: false },
       axisLine: {
         lineStyle: {
-          color: [[1, "#d1d5db"]],
-          width: 20,
+          color: [[1, axisLineColor]],
+          width: 16,
         },
       },
       axisTick: { show: false },
-      detail: { fontSize: 36, fontWeight: "bold", offsetCenter: [0, "8%"] },
+      detail: {
+        fontSize: 28,
+        fontWeight: "bold",
+        offsetCenter: [0, "8%"],
+        color: textColor,
+      },
       pointer: {
-        itemStyle: {
-          color: "#374151",
-        },
-        length: "70%",
-        width: 8,
+        itemStyle: { color: pointerColor },
+        length: "65%",
+        width: 6,
       },
       progress: {
-        itemStyle: {
-          color: "#2563eb",
-        },
+        itemStyle: { color: "#3b82f6" },
         roundCap: true,
         show: true,
-        width: 20,
+        width: 16,
       },
       splitLine: { show: false },
-      title: { fontSize: 20, offsetCenter: [0, "82%"] },
+      title: {
+        fontSize: 14,
+        offsetCenter: [0, "78%"],
+        color: isDark ? "#8888a0" : "#6b7280",
+      },
     };
 
     return {
-      animationDuration: 300,
+      animationDuration: 400,
+      animationEasingUpdate: "cubicOut",
       series: [
         {
           ...baseGauge,
@@ -294,13 +355,8 @@ export function GridEnergyDashboard() {
           radius: "31%",
           min: 0,
           max: 7000,
-          detail: {
-            fontSize: 36,
-            fontWeight: "bold",
-            offsetCenter: [0, "8%"],
-            formatter: "{value} MW",
-          },
-          title: { fontSize: 20, offsetCenter: [0, "82%"] },
+          detail: { ...baseGauge.detail, formatter: "{value} MW" },
+          title: { ...baseGauge.title },
           data: [{ value: Math.round(demand), name: "Demand" }],
         },
         {
@@ -310,17 +366,9 @@ export function GridEnergyDashboard() {
           radius: "31%",
           min: 0,
           max: 7000,
-          progress: {
-            ...baseGauge.progress,
-            itemStyle: { color: "#84cc16" },
-          },
-          detail: {
-            fontSize: 36,
-            fontWeight: "bold",
-            offsetCenter: [0, "8%"],
-            formatter: "{value} MW",
-          },
-          title: { fontSize: 20, offsetCenter: [0, "82%"] },
+          progress: { ...baseGauge.progress, itemStyle: { color: "#22c55e" } },
+          detail: { ...baseGauge.detail, formatter: "{value} MW" },
+          title: { ...baseGauge.title },
           data: [{ value: Math.round(generation), name: "Generation" }],
         },
         {
@@ -330,49 +378,29 @@ export function GridEnergyDashboard() {
           radius: "31%",
           min: 0,
           max: 100,
-          progress: {
-            ...baseGauge.progress,
-            itemStyle: { color: "#4f46e5" },
-          },
-          detail: {
-            fontSize: 36,
-            fontWeight: "bold",
-            offsetCenter: [0, "8%"],
-            formatter: "{value} %",
-          },
-          title: { fontSize: 20, offsetCenter: [0, "82%"] },
+          progress: { ...baseGauge.progress, itemStyle: { color: "#6366f1" } },
+          detail: { ...baseGauge.detail, formatter: "{value} %" },
+          title: { ...baseGauge.title },
           data: [{ value: Number(windPercent.toFixed(1)), name: "Wind %" }],
         },
         {
           ...baseGauge,
           type: "gauge",
           center: ["50%", "84%"],
-          radius: "29%",
+          radius: "27%",
           min: 49,
           max: 51,
-          progress: {
-            ...baseGauge.progress,
-            itemStyle: { color: "#fb923c" },
-          },
-          detail: {
-            fontSize: 36,
-            fontWeight: "bold",
-            offsetCenter: [0, "8%"],
-            formatter: "{value} Hz",
-          },
-          title: { fontSize: 20, offsetCenter: [0, "82%"] },
+          progress: { ...baseGauge.progress, itemStyle: { color: "#f59e0b" } },
+          detail: { ...baseGauge.detail, formatter: "{value} Hz" },
+          title: { ...baseGauge.title },
           data: [{ value: Number(frequency.toFixed(2)), name: "Frequency" }],
         },
       ],
     };
-  }, [
-    demandQuery.data?.payload?.demandMw,
-    frequencyQuery.data?.payload?.value,
-    generationQuery.data?.payload?.value,
-    windQuery.data?.payload?.value,
-  ]);
+  }, [demand, frequency, generation, windPercent]);
 
   const lineOption = useMemo<echarts.EChartsOption>(() => {
+    const isDark = typeof window !== "undefined" && document.documentElement.classList.contains("dark");
     const now = Date.now();
     const rangeWindowMs =
       rangeHours === "all"
@@ -402,8 +430,17 @@ export function GridEnergyDashboard() {
 
     return {
       animation: false,
-      tooltip: { trigger: "axis" },
-      legend: { data: ["Demand", "Generation"] },
+      tooltip: {
+        trigger: "axis",
+        backgroundColor: isDark ? "rgba(20,20,35,0.95)" : "rgba(255,255,255,0.95)",
+        borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+        textStyle: { color: isDark ? "#e0e0e8" : "#1f2937", fontSize: 12 },
+      },
+      legend: {
+        data: ["Demand", "Generation"],
+        textStyle: { color: isDark ? "#a0a0b0" : "#6b7280", fontSize: 12 },
+      },
+      grid: { left: "3%", right: "4%", bottom: "15%", containLabel: true },
       xAxis: {
         type: "category",
         data: plottingSeries.map((item) =>
@@ -412,10 +449,16 @@ export function GridEnergyDashboard() {
             minute: "2-digit",
           }),
         ),
+        axisLine: { lineStyle: { color: isDark ? "rgba(255,255,255,0.1)" : "#e5e7eb" } },
+        axisLabel: { color: isDark ? "#888" : "#9ca3af", fontSize: 11 },
       },
       yAxis: {
         type: "value",
         name: "MW",
+        nameTextStyle: { color: isDark ? "#888" : "#9ca3af", fontSize: 11 },
+        axisLine: { show: false },
+        splitLine: { lineStyle: { color: isDark ? "rgba(255,255,255,0.05)" : "#f3f4f6" } },
+        axisLabel: { color: isDark ? "#888" : "#9ca3af", fontSize: 11 },
       },
       dataZoom: [{ type: "inside" }, { type: "slider" }],
       series: [
@@ -425,6 +468,13 @@ export function GridEnergyDashboard() {
           data: plottingSeries.map((item) => item.demand),
           smooth: true,
           showSymbol: false,
+          lineStyle: { width: 2, color: "#3b82f6" },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: "rgba(59,130,246,0.2)" },
+              { offset: 1, color: "rgba(59,130,246,0.02)" },
+            ]),
+          },
         },
         {
           type: "line",
@@ -432,6 +482,13 @@ export function GridEnergyDashboard() {
           data: plottingSeries.map((item) => item.generation),
           smooth: true,
           showSymbol: false,
+          lineStyle: { width: 2, color: "#22c55e" },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: "rgba(34,197,94,0.15)" },
+              { offset: 1, color: "rgba(34,197,94,0.02)" },
+            ]),
+          },
         },
       ],
     };
@@ -466,41 +523,88 @@ export function GridEnergyDashboard() {
   }, [series]);
 
   return (
-    <section className="dashboard-container space-y-4">
+    <section className="dashboard-container space-y-6">
       {hasAnyError ? (
         <DegradedBanner message="One or more grid/energy data feeds are temporarily unavailable. Showing latest available values." />
       ) : null}
 
-      <Card>
-        <h2 className="text-lg font-semibold tracking-tight">Live Grid Gauges</h2>
-        <p className="text-xs text-muted-foreground">
-          ECharts real-time gauges for core national energy metrics.
-        </p>
+      {/* ─── Live Grid Gauges ─── */}
+      <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold tracking-tight">Live Grid Gauges</h2>
+            <p className="text-xs text-muted-foreground">
+              Real-time gauges for core national energy metrics
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="live-dot" />
+            <span className="text-xs font-medium text-muted-foreground">Streaming</span>
+          </div>
+        </div>
         {showCharts ? (
           <EChart className="h-[34rem]" option={gaugeOption} />
         ) : (
           <button
-            className="mt-3 rounded-md border px-3 py-2 text-sm"
+            className="btn-glow mt-4 rounded-lg border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
             onClick={() => setShowCharts(true)}
             type="button"
           >
             Load charts
           </button>
         )}
-      </Card>
+      </div>
 
-      <Card>
-        <h2 className="text-lg font-semibold tracking-tight">Demand vs Generation Stream</h2>
+      {/* ─── KPI cards ─── */}
+      <div className="dashboard-kpi-grid grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          icon={DollarSign}
+          label="SEMO Price"
+          value={semoQuery.data?.payload.latestPrice ?? "--"}
+          unit={semoQuery.data?.payload.latestPrice != null ? "EUR/MWh" : undefined}
+          accentColor="#f59e0b"
+        />
+        <KpiCard
+          icon={Leaf}
+          label="CO2 Intensity"
+          value={co2Query.data?.payload.value?.toFixed(1) ?? "--"}
+          unit="gCO2/kWh"
+          accentColor="#22c55e"
+        />
+        <KpiCard
+          icon={Cable}
+          label="Interconnectors"
+          value={
+            interconnectionQuery.data?.payload.ewicMw != null
+              ? `${interconnectionQuery.data.payload.ewicMw}`
+              : "--"
+          }
+          unit="MW"
+          subtext={`EWIC: ${interconnectionQuery.data?.payload.ewicMw ?? "--"} / Moyle: ${interconnectionQuery.data?.payload.moyleMw ?? "--"} MW`}
+          accentColor="#6366f1"
+        />
+        <KpiCard
+          icon={ZapOff}
+          label="ESB Outages"
+          value={esbQuery.data?.payload.outageCount ?? "--"}
+          subtext={`Fault: ${esbQuery.data?.payload.faultCount ?? "--"} / Planned: ${esbQuery.data?.payload.plannedCount ?? "--"}`}
+          accentColor="#ef4444"
+        />
+      </div>
+
+      {/* ─── Demand vs Generation Stream ─── */}
+      <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
+        <h2 className="text-lg font-bold tracking-tight">Demand vs Generation</h2>
         <p className="text-xs text-muted-foreground">
-          Streaming time-series with session DataZoom.
+          Streaming time-series with session DataZoom
         </p>
-        <div className="mt-3 grid gap-2 md:grid-cols-4">
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
           <div>
-            <label className="text-xs text-muted-foreground" htmlFor="grid-range-selector">
+            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="grid-range-selector">
               Range
             </label>
             <select
-              className="mt-1 w-full rounded-md border bg-background px-2 py-1 text-sm"
+              className="mt-1 w-full rounded-lg border bg-card px-3 py-2 text-sm transition-colors hover:bg-accent"
               id="grid-range-selector"
               onChange={(event) => setRangeHours(event.target.value)}
               value={rangeHours}
@@ -512,11 +616,11 @@ export function GridEnergyDashboard() {
             </select>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground" htmlFor="grid-aggregation-selector">
+            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="grid-aggregation-selector">
               Aggregation
             </label>
             <select
-              className="mt-1 w-full rounded-md border bg-background px-2 py-1 text-sm"
+              className="mt-1 w-full rounded-lg border bg-card px-3 py-2 text-sm transition-colors hover:bg-accent"
               id="grid-aggregation-selector"
               onChange={(event) => setAggregation(event.target.value)}
               value={aggregation}
@@ -528,11 +632,11 @@ export function GridEnergyDashboard() {
             </select>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground" htmlFor="grid-custom-start">
+            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="grid-custom-start">
               Custom Start
             </label>
             <input
-              className="mt-1 w-full rounded-md border bg-background px-2 py-1 text-sm"
+              className="mt-1 w-full rounded-lg border bg-card px-3 py-2 text-sm"
               id="grid-custom-start"
               onChange={(event) => setCustomStart(event.target.value)}
               type="datetime-local"
@@ -540,11 +644,11 @@ export function GridEnergyDashboard() {
             />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground" htmlFor="grid-custom-end">
+            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="grid-custom-end">
               Custom End
             </label>
             <input
-              className="mt-1 w-full rounded-md border bg-background px-2 py-1 text-sm"
+              className="mt-1 w-full rounded-lg border bg-card px-3 py-2 text-sm"
               id="grid-custom-end"
               onChange={(event) => setCustomEnd(event.target.value)}
               type="datetime-local"
@@ -553,9 +657,9 @@ export function GridEnergyDashboard() {
           </div>
         </div>
         {showCharts ? <EChart option={lineOption} /> : null}
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
-            className="rounded-md border px-2 py-1 text-xs"
+            className="rounded-lg border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
             onClick={() => {
               const payload = JSON.stringify(series, null, 2);
               downloadText("grid-history.json", payload, "application/json");
@@ -565,7 +669,7 @@ export function GridEnergyDashboard() {
             Export JSON
           </button>
           <button
-            className="rounded-md border px-2 py-1 text-xs"
+            className="rounded-lg border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
             onClick={() => {
               const csv = [
                 "timestamp,demand_mw,generation_mw",
@@ -581,7 +685,7 @@ export function GridEnergyDashboard() {
             Export CSV
           </button>
           <button
-            className="rounded-md border px-2 py-1 text-xs"
+            className="rounded-lg border bg-card px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
             onClick={() => {
               setSeries([]);
               writeHistoryToStorage([]);
@@ -591,94 +695,74 @@ export function GridEnergyDashboard() {
             Clear Local History
           </button>
         </div>
-      </Card>
+      </div>
 
-      <Card>
-        <h2 className="text-lg font-semibold tracking-tight">Comparative Demand View</h2>
+      {/* ─── Comparative Demand View ─── */}
+      <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
+        <h2 className="text-lg font-bold tracking-tight">Comparative Demand</h2>
         <p className="text-xs text-muted-foreground">
-          This-hour vs previous-hour average demand from local persisted history.
+          This-hour vs previous-hour average demand from local persisted history
         </p>
-        <div className="dashboard-kpi-grid mt-3 grid gap-3 md:grid-cols-3">
-          <div className="rounded-md border p-2">
-            <p className="text-xs text-muted-foreground">This Hour Avg</p>
-            <p className="text-xl font-semibold">
-              {comparativeSummary.thisHourDemand?.toFixed(1) ?? "--"} MW
+        <div className="dashboard-kpi-grid mt-4 grid gap-4 md:grid-cols-3">
+          <div className="kpi-card rounded-xl border bg-card/80 p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">This Hour Avg</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight metric-value">
+              {comparativeSummary.thisHourDemand?.toFixed(1) ?? "--"} <span className="text-sm font-medium text-muted-foreground">MW</span>
             </p>
           </div>
-          <div className="rounded-md border p-2">
-            <p className="text-xs text-muted-foreground">Previous Hour Avg</p>
-            <p className="text-xl font-semibold">
-              {comparativeSummary.previousHourDemand?.toFixed(1) ?? "--"} MW
+          <div className="kpi-card rounded-xl border bg-card/80 p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Previous Hour Avg</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight metric-value">
+              {comparativeSummary.previousHourDemand?.toFixed(1) ?? "--"} <span className="text-sm font-medium text-muted-foreground">MW</span>
             </p>
           </div>
-          <div className="rounded-md border p-2">
-            <p className="text-xs text-muted-foreground">Delta</p>
-            <p className="text-xl font-semibold">
-              {comparativeSummary.delta === null ? "--" : `${comparativeSummary.delta} MW`}
+          <div className="kpi-card rounded-xl border bg-card/80 p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Delta</p>
+            <p className={cn(
+              "mt-1 text-2xl font-bold tabular-nums tracking-tight metric-value",
+              comparativeSummary.delta !== null && comparativeSummary.delta > 0 && "text-[oklch(0.65_0.22_25)]",
+              comparativeSummary.delta !== null && comparativeSummary.delta < 0 && "text-[oklch(0.65_0.18_155)]",
+            )}>
+              {comparativeSummary.delta === null
+                ? "--"
+                : `${comparativeSummary.delta > 0 ? "+" : ""}${comparativeSummary.delta}`}{" "}
+              <span className="text-sm font-medium text-muted-foreground">MW</span>
             </p>
           </div>
         </div>
-      </Card>
-
-      <div className="dashboard-kpi-grid grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <p className="text-sm text-muted-foreground">SEMO Latest Price</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {semoQuery.data?.payload.latestPrice ?? "--"}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-muted-foreground">CO2 Intensity</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {co2Query.data?.payload.value?.toFixed(1) ?? "--"} gCO2/kWh
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-muted-foreground">Interconnectors</p>
-          <p className="mt-2 text-sm font-medium">
-            EWIC: {interconnectionQuery.data?.payload.ewicMw ?? "--"} MW
-          </p>
-          <p className="text-sm font-medium">
-            Moyle: {interconnectionQuery.data?.payload.moyleMw ?? "--"} MW
-          </p>
-        </Card>
-        <Card>
-          <p className="text-sm text-muted-foreground">ESB Outages</p>
-          <p className="mt-2 text-2xl font-semibold">
-            {esbQuery.data?.payload.outageCount ?? "--"}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Fault: {esbQuery.data?.payload.faultCount ?? "--"} / Planned:{" "}
-            {esbQuery.data?.payload.plannedCount ?? "--"}
-          </p>
-        </Card>
       </div>
 
-      {showTopologyMap ? (
-        <GridEnergyMap
-          ewicMw={interconnectionQuery.data?.payload.ewicMw ?? null}
-          moyleMw={interconnectionQuery.data?.payload.moyleMw ?? null}
+      {/* ─── Gas & Map ─── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <KpiCard
+          icon={Flame}
+          label="Gas Networks Live Points"
+          value={gasQuery.data?.payload.itemCount ?? "--"}
+          subtext="Entry point flows and pressures"
+          accentColor="#f97316"
         />
-      ) : (
-        <Card>
-          <h2 className="text-lg font-semibold tracking-tight">Grid Topology Map (Local)</h2>
-          <p className="text-xs text-muted-foreground">
-            Interconnector routes, key converter sites, and sample wind assets.
-          </p>
-          <button
-            className="mt-3 rounded-md border px-3 py-2 text-sm"
-            onClick={() => setShowTopologyMap(true)}
-            type="button"
-          >
-            Load map
-          </button>
-        </Card>
-      )}
 
-      <Card>
-        <p className="text-sm text-muted-foreground">Gas Networks Live Map Points</p>
-        <p className="mt-2 text-2xl font-semibold">{gasQuery.data?.payload.itemCount ?? "--"}</p>
-      </Card>
+        {showTopologyMap ? (
+          <GridEnergyMap
+            ewicMw={interconnectionQuery.data?.payload.ewicMw ?? null}
+            moyleMw={interconnectionQuery.data?.payload.moyleMw ?? null}
+          />
+        ) : (
+          <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
+            <h2 className="text-base font-bold tracking-tight">Grid Topology Map</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Interconnector routes, key converter sites, and sample wind assets
+            </p>
+            <button
+              className="btn-glow mt-3 rounded-lg border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
+              onClick={() => setShowTopologyMap(true)}
+              type="button"
+            >
+              Load map
+            </button>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
