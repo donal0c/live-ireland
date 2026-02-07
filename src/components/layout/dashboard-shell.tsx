@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { SystemHealthBadge } from "@/components/layout/system-health-badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,_var(--color-muted),_transparent_45%),linear-gradient(to_bottom,var(--color-background),var(--color-background))]">
+      <a
+        className="sr-only z-50 rounded-md bg-background px-3 py-2 text-sm font-medium shadow focus:not-sr-only focus:absolute focus:left-4 focus:top-4"
+        href="#dashboard-main"
+      >
+        Skip to main content
+      </a>
       <div className="mx-auto flex min-h-screen max-w-7xl gap-4 p-3 sm:p-4 md:gap-6 md:p-6">
         <aside className="hidden w-72 shrink-0 rounded-2xl border bg-card/90 p-4 backdrop-blur lg:flex lg:flex-col">
           <div className="space-y-1">
@@ -22,7 +29,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <h1 className="text-xl font-semibold tracking-tight">National Dashboard</h1>
           </div>
 
-          <nav className="mt-6 space-y-2">
+          <nav aria-label="Primary dashboard sections" className="mt-6 space-y-2">
             {dashboardTabs.map((tab) => {
               const isActive = pathname === tab.href;
               const Icon = tab.icon;
@@ -57,11 +64,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               </div>
               <div className="flex items-center gap-2">
                 <Badge variant="secondary">Phase 1 Scaffold</Badge>
+                <SystemHealthBadge />
                 <ThemeToggle />
               </div>
             </div>
 
-            <nav className="mt-3 flex gap-2 overflow-x-auto lg:hidden">
+            <nav
+              aria-label="Mobile dashboard sections"
+              className="mt-3 flex gap-2 overflow-x-auto lg:hidden"
+            >
               {dashboardTabs.map((tab) => {
                 const isActive = pathname === tab.href;
                 return (
@@ -78,7 +89,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             </nav>
           </header>
 
-          <main className="flex-1 rounded-2xl border bg-card/90 p-4 backdrop-blur sm:p-6">
+          <main
+            className="flex-1 rounded-2xl border bg-card/90 p-4 backdrop-blur sm:p-6"
+            id="dashboard-main"
+          >
             {children}
           </main>
         </div>

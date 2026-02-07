@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge, Card } from "@tremor/react";
 import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { DegradedBanner } from "@/components/ui/degraded-banner";
 import { trpcClient } from "@/lib/trpc-client";
 
 type AdapterEnvelope<T> = {
@@ -417,9 +418,23 @@ export function TransportDashboard() {
   const redLineNormal = (redLineStatusQuery.data?.message ?? "")
     .toLowerCase()
     .includes("operating normally");
+  const hasAnyError = [
+    irishRailQuery,
+    luasQuery,
+    bikesQuery,
+    trafficQuery,
+    overviewQuery,
+    departuresQuery,
+    selectedLuasQuery,
+    greenLineStatusQuery,
+    redLineStatusQuery,
+  ].some((query) => query.isError);
 
   return (
     <section className="space-y-4">
+      {hasAnyError ? (
+        <DegradedBanner message="One or more transport sources are unavailable. Some map layers and boards may be stale." />
+      ) : null}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Card>
           <p className="text-sm text-muted-foreground">Active Trains</p>

@@ -3,8 +3,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Badge, Card } from "@tremor/react";
 import * as echarts from "echarts";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { WeatherWaterMap } from "@/components/weather/weather-water-map";
+import { DegradedBanner } from "@/components/ui/degraded-banner";
 import { trpcClient } from "@/lib/trpc-client";
 
 type AdapterEnvelope<T> = {
@@ -36,6 +37,10 @@ type MetWarningsPayload = {
 type OpwPayload = { featureCount: number };
 type MarinePayload = { latestWaveHeight: number | null; latestTime: string | null };
 type EpaPayload = { monitorCount: number; sampleStations: string[] };
+const WeatherWaterMap = dynamic(
+  () => import("@/components/weather/weather-water-map").then((mod) => mod.WeatherWaterMap),
+  { ssr: false },
+);
 
 function useAdapterSnapshot<T>(adapterId: string, refetchInterval = 30_000) {
   return useQuery({
@@ -107,6 +112,9 @@ export function WeatherWaterDashboard() {
   const marineQuery = useAdapterSnapshot<MarinePayload>("marine-iwbnetwork", 60_000);
   const epaQuery = useAdapterSnapshot<EpaPayload>("epa-air-quality", 60_000);
   const observationSnapshot = observationQuery.data;
+  const hasAnyError = [observationQuery, warningsQuery, opwQuery, marineQuery, epaQuery].some(
+    (query) => query.isError,
+  );
 
   const [history, setHistory] = useState<
     Array<{ time: string; temperature: number; humidity: number; wind: number }>
@@ -182,6 +190,9 @@ export function WeatherWaterDashboard() {
 
   return (
     <section className="space-y-4">
+      {hasAnyError ? (
+        <DegradedBanner message="One or more weather/water sources are unavailable. Map and metrics are showing partial data." />
+      ) : null}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Card>
           <p className="text-sm text-muted-foreground">Temperature (Dublin Airport)</p>

@@ -3,9 +3,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@tremor/react";
 import * as echarts from "echarts";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { GridEnergyMap } from "@/components/grid/grid-energy-map";
+import { DegradedBanner } from "@/components/ui/degraded-banner";
 import { trpcClient } from "@/lib/trpc-client";
 
 type AdapterEnvelope<T> = {
@@ -52,6 +53,12 @@ type HistoryPoint = {
 };
 
 const gridHistoryStorageKey = "live_ireland_grid_history_v1";
+const GridEnergyMap = dynamic(
+  () => import("@/components/grid/grid-energy-map").then((mod) => mod.GridEnergyMap),
+  {
+    ssr: false,
+  },
+);
 
 const readHistoryFromStorage = (): HistoryPoint[] => {
   if (typeof window === "undefined") {
@@ -183,6 +190,17 @@ export function GridEnergyDashboard() {
   const [aggregation, setAggregation] = useState("raw");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const hasAnyError = [
+    demandQuery,
+    generationQuery,
+    windQuery,
+    frequencyQuery,
+    co2Query,
+    interconnectionQuery,
+    semoQuery,
+    esbQuery,
+    gasQuery,
+  ].some((query) => query.isError);
 
   useEffect(() => {
     setSeries(readHistoryFromStorage());
@@ -378,6 +396,10 @@ export function GridEnergyDashboard() {
 
   return (
     <section className="space-y-4">
+      {hasAnyError ? (
+        <DegradedBanner message="One or more grid/energy data feeds are temporarily unavailable. Showing latest available values." />
+      ) : null}
+
       <Card>
         <h2 className="text-lg font-semibold tracking-tight">Live Grid Gauges</h2>
         <p className="text-xs text-muted-foreground">

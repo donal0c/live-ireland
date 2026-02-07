@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge, Card } from "@tremor/react";
 import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { DegradedBanner } from "@/components/ui/degraded-banner";
 import { trpcClient } from "@/lib/trpc-client";
 
 type AdapterEnvelope<T> = {
@@ -426,9 +427,20 @@ export function OutagesAlertsDashboard() {
       type: outage.type,
     }));
   }, [esbMapQuery.data?.outages]);
+  const hasAnyError = [
+    esbSummaryQuery,
+    warningsSummaryQuery,
+    esbMapQuery,
+    weatherLayersQuery,
+    railHeustonQuery,
+    railConnollyQuery,
+  ].some((query) => query.isError);
 
   return (
     <section className="space-y-4">
+      {hasAnyError ? (
+        <DegradedBanner message="One or more outage/alert feeds are unavailable. Timeline and map are showing partial data." />
+      ) : null}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Card>
           <p className="text-sm text-muted-foreground">ESB Outages</p>
