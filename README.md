@@ -68,6 +68,15 @@ Configure via `.env` using `.env.example` as a template.
 - `GET /adapters/health` - per-adapter run state and timings
 - `GET /trpc/dashboard.adapterStatuses` - same data over tRPC
 
+## Cloud provisioning (Phase 2b)
+
+Provisioning helpers are available in `/Users/donalocallaghan/workspace/vibes/Live_Ireland/scripts/provision`:
+
+- `check-cloud-prereqs.sh`
+- `apply-supabase.sh`
+- `deploy-fly-api.sh`
+- `x2c-runbook.md`
+
 ## Quality checks
 
 ```bash
