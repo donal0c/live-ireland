@@ -56,6 +56,12 @@ type EsbOutageResponse = {
 };
 
 const ESB_SUBSCRIPTION_KEY = "f713e48af3a746bbb1b110ab69113960";
+const apiSecurityHeaders: Record<string, string> = {
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+  "x-permitted-cross-domain-policies": "none",
+  "referrer-policy": "strict-origin-when-cross-origin",
+};
 
 const getClientIp = (value: string | undefined) => {
   if (!value) {
@@ -153,6 +159,14 @@ export const createApiApp = (adapterManager: AdapterManager) => {
   const app = new Hono();
 
   app.use("*", cors({ origin: config.corsOrigin }));
+  app.use("*", async (c, next) => {
+    const requestId = crypto.randomUUID();
+    await next();
+    c.header("x-request-id", requestId);
+    for (const [key, value] of Object.entries(apiSecurityHeaders)) {
+      c.header(key, value);
+    }
+  });
   app.use("*", rateLimit(240));
 
   app.onError((error, c) => {
@@ -165,6 +179,18 @@ export const createApiApp = (adapterManager: AdapterManager) => {
       adapterCount: adapterManager.getStatuses().length,
       now: new Date().toISOString(),
       ok: true,
+      uptimeSeconds: Math.round(process.uptime()),
+    });
+  });
+
+  app.get("/health/ready", (c) => {
+    const statuses = adapterManager.getStatuses();
+    const degraded = statuses.filter((status) => status.state === "degraded").length;
+
+    return c.json({
+      degraded,
+      ok: degraded === 0,
+      total: statuses.length,
     });
   });
 

@@ -1,47 +1,23 @@
 # Live Ireland
 
-Live Ireland is a real-time national dashboard for Ireland that brings critical public infrastructure feeds into one interface.
+Live Ireland is a local-first, real-time national dashboard for Ireland that combines public infrastructure feeds into one operational view.
 
 ## What the app does
 
-The dashboard is split into four live-operational tabs:
+The dashboard ships four live tabs:
 
-- **Grid & Energy**: National electricity demand, generation mix, wind share, grid frequency, and market context.
-- **Weather & Water**: Weather conditions and warnings with national water-level monitoring.
-- **Transport**: Rail, tram, and traffic telemetry.
-- **Outages & Alerts**: Power outages and active incidents/warnings.
+- **Grid & Energy**: EirGrid demand/generation/frequency/wind, interconnection, CO2 intensity, SEMO market context, gas demand, and outage overlays.
+- **Weather & Water**: Met Eireann observations and warnings, OPW water levels, EPA monitoring sites, and radar/map overlays.
+- **Transport**: Irish Rail train positions and departures, Luas forecasts, Dublin Bikes availability, and TII traffic sites.
+- **Outages & Alerts**: ESB outages, warning/incident summaries, and timeline views for active disruption signals.
 
-The goal is to provide a single, fast view of Ireland's current infrastructure status using no-auth public data sources.
+## Local-first architecture
 
-## Current phase
-
-Phase 1 and Phase 2 backend foundation are complete:
-
-- Next.js 16 + React 19 + Turbopack
-- Tailwind CSS v4 + Lightning CSS processing
-- shadcn/ui base system
-- Tremor dashboard component integration
-- TanStack Query provider setup
-- Zustand UI store skeleton
-- Responsive dashboard shell and routing
-- Dark/light theme toggle
-- Basic loading and route-level error boundaries
-- Biome linting/formatting and strict TypeScript configuration
-- Hono API server with tRPC v11 router
-- SSE subscriptions via `httpSubscriptionLink`
-- EirGrid demand poller with fan-out channel
-- Health and metrics endpoints
-- Multi-source adapter runtime (retry, polling cadence, per-adapter health)
-- Optional Valkey/Upstash cache + pub/sub hooks
-- Supabase Timescale migration scaffold
-- Fly.io Dublin deployment skeleton (`fly.api.toml`)
-
-## Tech stack
-
-- **Frontend**: Next.js 16, React 19, TypeScript
-- **Styling/UI**: Tailwind CSS v4, shadcn/ui, Tremor
-- **State/Data**: Zustand, TanStack Query
-- **Quality**: Biome, strict TypeScript
+- **Frontend**: Next.js 16, React 19, TypeScript, Tailwind v4, Tremor
+- **API**: Hono + tRPC v11 on `http://localhost:8787`
+- **Realtime**: SSE subscriptions for dashboard streams
+- **Data adapters**: per-source polling runtime with adapter health reporting
+- **Optional local infra**: Redis/Valkey via Docker Compose for cache/pubsub
 
 ## Routes
 
@@ -50,7 +26,7 @@ Phase 1 and Phase 2 backend foundation are complete:
 - `/transport`
 - `/outages-alerts`
 
-## Getting started
+## Quick start (fully local)
 
 ```bash
 npm install
@@ -60,8 +36,7 @@ npm run dev:local
 
 Open [http://localhost:3000](http://localhost:3000).
 
-The frontend expects the API at `http://localhost:8787` by default.
-Configure via `.env` using `.env.example` as a template. For local cache/pubsub, use `REDIS_URL=redis://localhost:6379`.
+Copy `.env.example` to `.env` and keep local values (for example `REDIS_URL=redis://localhost:6379`).
 
 Stop local infra with:
 
@@ -69,19 +44,22 @@ Stop local infra with:
 npm run infra:down
 ```
 
-## Adapter health endpoints
+## API operational endpoints
 
-- `GET /adapters/health` - per-adapter run state and timings
-- `GET /trpc/dashboard.adapterStatuses` - same data over tRPC
+- `GET /health` - API liveness + uptime
+- `GET /health/ready` - adapter readiness summary
+- `GET /metrics` - basic API metrics
+- `GET /adapters/health` - detailed adapter run state
+- `GET /trpc/dashboard.adapterStatuses` - adapter status via tRPC
 
-## Cloud provisioning (Phase 2b)
+## Production-readiness work in progress
 
-Provisioning helpers are available in `/Users/donalocallaghan/workspace/vibes/Live_Ireland/scripts/provision`:
+Phase 10 hardening currently includes:
 
-- `check-cloud-prereqs.sh`
-- `apply-supabase.sh`
-- `deploy-fly-api.sh`
-- `x2c-runbook.md`
+- security headers and CSP on web responses
+- API request IDs, rate limiting, and secure response headers
+- SSE auto-reconnect with stale-data signaling in live panels
+- route-level loading/error boundaries and fallback UI states
 
 ## Quality checks
 
@@ -93,10 +71,10 @@ npm run build
 
 ## Research and decisions
 
-This repository follows the recommendations in:
+This repository follows:
 
 - `../ideas_and_research/technology_stack/08_recommended_stack.md`
 
-Data-source research and broader architecture context are indexed in:
+Broader data-source research is indexed in:
 
 - `/Users/donalocallaghan/workspace/vibes/Live_Ireland/CLAUDE.md`
