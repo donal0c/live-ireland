@@ -4,7 +4,6 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import { useQuery } from "@tanstack/react-query";
 import { Badge, Card } from "@tremor/react";
-import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DegradedBanner } from "@/components/ui/degraded-banner";
 import { trpcClient } from "@/lib/trpc-client";
@@ -141,8 +140,9 @@ const toFeatureCollection = <T extends Record<string, number | string>>(
 };
 
 function TransportMap({ overview }: { overview: TransportOverview | null }) {
-  const mapRef = useRef<maplibregl.Map | null>(null);
+  const mapRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [maplibreModule, setMaplibreModule] = useState<null | typeof import("maplibre-gl")>(null);
 
   const [showTrains, setShowTrains] = useState(true);
   const [showBikes, setShowBikes] = useState(true);
@@ -162,18 +162,31 @@ function TransportMap({ overview }: { overview: TransportOverview | null }) {
   );
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) {
+    let mounted = true;
+    void import("maplibre-gl").then((module) => {
+      if (mounted) {
+        setMaplibreModule(module);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current || !maplibreModule) {
       return;
     }
 
-    const map = new maplibregl.Map({
+    const map = new maplibreModule.Map({
       container: containerRef.current,
       center: [-8.2, 53.4],
       zoom: 6,
       style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
     });
 
-    map.addControl(new maplibregl.NavigationControl(), "top-right");
+    map.addControl(new maplibreModule.NavigationControl(), "top-right");
 
     map.on("load", () => {
       map.addSource("transport-trains", { type: "geojson", data: emptyCollection });
@@ -228,7 +241,7 @@ function TransportMap({ overview }: { overview: TransportOverview | null }) {
       map.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [maplibreModule]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -236,7 +249,7 @@ function TransportMap({ overview }: { overview: TransportOverview | null }) {
       return;
     }
 
-    const source = map.getSource("transport-trains") as GeoJSONSource | undefined;
+    const source = map.getSource("transport-trains");
     if (source) {
       source.setData(trainsGeoJson as never);
     }
@@ -248,7 +261,7 @@ function TransportMap({ overview }: { overview: TransportOverview | null }) {
       return;
     }
 
-    const source = map.getSource("transport-bikes") as GeoJSONSource | undefined;
+    const source = map.getSource("transport-bikes");
     if (source) {
       source.setData(bikesGeoJson as never);
     }
@@ -260,7 +273,7 @@ function TransportMap({ overview }: { overview: TransportOverview | null }) {
       return;
     }
 
-    const source = map.getSource("transport-traffic") as GeoJSONSource | undefined;
+    const source = map.getSource("transport-traffic");
     if (source) {
       source.setData(trafficGeoJson as never);
     }
@@ -332,6 +345,7 @@ export function TransportDashboard() {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8787";
   const [stationCode, setStationCode] = useState("HSTON");
   const [luasStopCode, setLuasStopCode] = useState("MAR");
+  const [showTransportMap, setShowTransportMap] = useState(false);
 
   const irishRailQuery = useAdapterSnapshot<IrishRailPayload>("irish-rail", 90_000);
   const luasQuery = useAdapterSnapshot<LuasPayload>("luas-mar", 30_000);
@@ -431,11 +445,11 @@ export function TransportDashboard() {
   ].some((query) => query.isError);
 
   return (
-    <section className="space-y-4">
+    <section className="dashboard-container space-y-4">
       {hasAnyError ? (
         <DegradedBanner message="One or more transport sources are unavailable. Some map layers and boards may be stale." />
       ) : null}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="dashboard-kpi-grid grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Card>
           <p className="text-sm text-muted-foreground">Active Trains</p>
           <p className="mt-2 text-2xl font-semibold">
@@ -550,9 +564,25 @@ export function TransportDashboard() {
         </div>
       </Card>
 
-      <TransportMap overview={overviewQuery.data ?? null} />
+      {showTransportMap ? (
+        <TransportMap overview={overviewQuery.data ?? null} />
+      ) : (
+        <Card>
+          <h2 className="text-lg font-semibold tracking-tight">Transport Operations Map</h2>
+          <p className="text-xs text-muted-foreground">
+            Irish Rail live positions, Dublin Bikes availability, and TII traffic sites.
+          </p>
+          <button
+            className="mt-3 rounded-md border px-3 py-2 text-sm"
+            onClick={() => setShowTransportMap(true)}
+            type="button"
+          >
+            Load map
+          </button>
+        </Card>
+      )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="dashboard-split-grid grid gap-4 lg:grid-cols-2">
         <Card>
           <h2 className="text-lg font-semibold tracking-tight">Irish Rail Departure Board</h2>
           <div className="mt-2 flex items-center gap-2">

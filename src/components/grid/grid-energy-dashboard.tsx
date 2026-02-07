@@ -190,6 +190,8 @@ export function GridEnergyDashboard() {
   const [aggregation, setAggregation] = useState("raw");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const [showTopologyMap, setShowTopologyMap] = useState(false);
+  const [showCharts, setShowCharts] = useState(false);
   const hasAnyError = [
     demandQuery,
     generationQuery,
@@ -395,7 +397,7 @@ export function GridEnergyDashboard() {
   }, [series]);
 
   return (
-    <section className="space-y-4">
+    <section className="dashboard-container space-y-4">
       {hasAnyError ? (
         <DegradedBanner message="One or more grid/energy data feeds are temporarily unavailable. Showing latest available values." />
       ) : null}
@@ -405,7 +407,17 @@ export function GridEnergyDashboard() {
         <p className="text-xs text-muted-foreground">
           ECharts real-time gauges for core national energy metrics.
         </p>
-        <EChart option={gaugeOption} />
+        {showCharts ? (
+          <EChart option={gaugeOption} />
+        ) : (
+          <button
+            className="mt-3 rounded-md border px-3 py-2 text-sm"
+            onClick={() => setShowCharts(true)}
+            type="button"
+          >
+            Load charts
+          </button>
+        )}
       </Card>
 
       <Card>
@@ -471,7 +483,7 @@ export function GridEnergyDashboard() {
             />
           </div>
         </div>
-        <EChart option={lineOption} />
+        {showCharts ? <EChart option={lineOption} /> : null}
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
             className="rounded-md border px-2 py-1 text-xs"
@@ -517,7 +529,7 @@ export function GridEnergyDashboard() {
         <p className="text-xs text-muted-foreground">
           This-hour vs previous-hour average demand from local persisted history.
         </p>
-        <div className="mt-3 grid gap-3 md:grid-cols-3">
+        <div className="dashboard-kpi-grid mt-3 grid gap-3 md:grid-cols-3">
           <div className="rounded-md border p-2">
             <p className="text-xs text-muted-foreground">This Hour Avg</p>
             <p className="text-xl font-semibold">
@@ -539,7 +551,7 @@ export function GridEnergyDashboard() {
         </div>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="dashboard-kpi-grid grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <p className="text-sm text-muted-foreground">SEMO Latest Price</p>
           <p className="mt-2 text-2xl font-semibold">
@@ -573,10 +585,26 @@ export function GridEnergyDashboard() {
         </Card>
       </div>
 
-      <GridEnergyMap
-        ewicMw={interconnectionQuery.data?.payload.ewicMw ?? null}
-        moyleMw={interconnectionQuery.data?.payload.moyleMw ?? null}
-      />
+      {showTopologyMap ? (
+        <GridEnergyMap
+          ewicMw={interconnectionQuery.data?.payload.ewicMw ?? null}
+          moyleMw={interconnectionQuery.data?.payload.moyleMw ?? null}
+        />
+      ) : (
+        <Card>
+          <h2 className="text-lg font-semibold tracking-tight">Grid Topology Map (Local)</h2>
+          <p className="text-xs text-muted-foreground">
+            Interconnector routes, key converter sites, and sample wind assets.
+          </p>
+          <button
+            className="mt-3 rounded-md border px-3 py-2 text-sm"
+            onClick={() => setShowTopologyMap(true)}
+            type="button"
+          >
+            Load map
+          </button>
+        </Card>
+      )}
 
       <Card>
         <p className="text-sm text-muted-foreground">Gas Networks Live Map Points</p>

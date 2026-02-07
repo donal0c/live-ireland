@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Badge, Card } from "@tremor/react";
-import * as echarts from "echarts";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DegradedBanner } from "@/components/ui/degraded-banner";
@@ -53,17 +52,34 @@ function useAdapterSnapshot<T>(adapterId: string, refetchInterval = 30_000) {
   });
 }
 
-function EChart({ option }: { option: echarts.EChartsOption }) {
+type EChartsOption = import("echarts").EChartsOption;
+type EChartsInstance = import("echarts").EChartsType;
+
+function EChart({ option }: { option: EChartsOption }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const chartRef = useRef<echarts.EChartsType | null>(null);
+  const chartRef = useRef<EChartsInstance | null>(null);
+  const [echartsModule, setEchartsModule] = useState<null | typeof import("echarts")>(null);
 
   useEffect(() => {
-    if (!rootRef.current) {
+    let mounted = true;
+    void import("echarts").then((module) => {
+      if (mounted) {
+        setEchartsModule(module);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!rootRef.current || !echartsModule) {
       return;
     }
 
     if (!chartRef.current) {
-      chartRef.current = echarts.init(rootRef.current);
+      chartRef.current = echartsModule.init(rootRef.current);
     }
 
     chartRef.current.setOption(option, true);
@@ -76,7 +92,7 @@ function EChart({ option }: { option: echarts.EChartsOption }) {
     return () => {
       resizeObserver.disconnect();
     };
-  }, [option]);
+  }, [echartsModule, option]);
 
   useEffect(() => {
     return () => {
@@ -119,6 +135,8 @@ export function WeatherWaterDashboard() {
   const [history, setHistory] = useState<
     Array<{ time: string; temperature: number; humidity: number; wind: number }>
   >([]);
+  const [showWeatherMap, setShowWeatherMap] = useState(false);
+  const [showWeatherTrend, setShowWeatherTrend] = useState(false);
 
   useEffect(() => {
     const snapshot = observationSnapshot;
@@ -149,7 +167,7 @@ export function WeatherWaterDashboard() {
     });
   }, [observationSnapshot]);
 
-  const trendOption = useMemo<echarts.EChartsOption>(() => {
+  const trendOption = useMemo<EChartsOption>(() => {
     return {
       animation: false,
       tooltip: { trigger: "axis" },
@@ -189,11 +207,11 @@ export function WeatherWaterDashboard() {
   const warnings = warningsQuery.data?.payload;
 
   return (
-    <section className="space-y-4">
+    <section className="dashboard-container space-y-4">
       {hasAnyError ? (
         <DegradedBanner message="One or more weather/water sources are unavailable. Map and metrics are showing partial data." />
       ) : null}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="dashboard-kpi-grid grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Card>
           <p className="text-sm text-muted-foreground">Temperature (Dublin Airport)</p>
           <p className="mt-2 text-2xl font-semibold">
@@ -233,10 +251,20 @@ export function WeatherWaterDashboard() {
         <p className="text-xs text-muted-foreground">
           Temperature, humidity, and wind trend from live observations.
         </p>
-        <EChart option={trendOption} />
+        {showWeatherTrend ? (
+          <EChart option={trendOption} />
+        ) : (
+          <button
+            className="mt-3 rounded-md border px-3 py-2 text-sm"
+            onClick={() => setShowWeatherTrend(true)}
+            type="button"
+          >
+            Load trend chart
+          </button>
+        )}
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="dashboard-split-grid grid gap-4 lg:grid-cols-2">
         <Card>
           <h2 className="text-lg font-semibold tracking-tight">Active Warning Highlights</h2>
           <div className="mt-3 space-y-2">
@@ -285,7 +313,23 @@ export function WeatherWaterDashboard() {
         </Card>
       </div>
 
-      <WeatherWaterMap />
+      {showWeatherMap ? (
+        <WeatherWaterMap />
+      ) : (
+        <Card>
+          <h2 className="text-lg font-semibold tracking-tight">Weather & Water Map</h2>
+          <p className="text-xs text-muted-foreground">
+            OPW flood-risk points, Met warning polygons, EPA stations, and radar overlay.
+          </p>
+          <button
+            className="mt-3 rounded-md border px-3 py-2 text-sm"
+            onClick={() => setShowWeatherMap(true)}
+            type="button"
+          >
+            Load map
+          </button>
+        </Card>
+      )}
     </section>
   );
 }

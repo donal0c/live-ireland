@@ -4,7 +4,6 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import { useQuery } from "@tanstack/react-query";
 import { Badge, Card } from "@tremor/react";
-import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DegradedBanner } from "@/components/ui/degraded-banner";
 import { trpcClient } from "@/lib/trpc-client";
@@ -122,25 +121,39 @@ function OutagesMap({
   esbOutages: Array<{ lat: number; lng: number; severity: TimelineSeverity; type: string }>;
   floodAlerts: Array<{ lat: number; lng: number; station: string; value: number }>;
 }) {
-  const mapRef = useRef<maplibregl.Map | null>(null);
+  const mapRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [maplibreModule, setMaplibreModule] = useState<null | typeof import("maplibre-gl")>(null);
 
   const esbGeoJson = useMemo(() => toFeatureCollection(esbOutages, "lat", "lng"), [esbOutages]);
   const floodGeoJson = useMemo(() => toFeatureCollection(floodAlerts, "lat", "lng"), [floodAlerts]);
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) {
+    let mounted = true;
+    void import("maplibre-gl").then((module) => {
+      if (mounted) {
+        setMaplibreModule(module);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current || !maplibreModule) {
       return;
     }
 
-    const map = new maplibregl.Map({
+    const map = new maplibreModule.Map({
       container: containerRef.current,
       center: [-8.2, 53.4],
       zoom: 6,
       style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
     });
 
-    map.addControl(new maplibregl.NavigationControl(), "top-right");
+    map.addControl(new maplibreModule.NavigationControl(), "top-right");
 
     map.on("load", () => {
       map.addSource("outages-esb", { type: "geojson", data: emptyCollection });
@@ -188,14 +201,14 @@ function OutagesMap({
       map.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [maplibreModule]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map) {
       return;
     }
-    const source = map.getSource("outages-esb") as GeoJSONSource | undefined;
+    const source = map.getSource("outages-esb");
     if (source) {
       source.setData(esbGeoJson as never);
     }
@@ -206,7 +219,7 @@ function OutagesMap({
     if (!map) {
       return;
     }
-    const source = map.getSource("outages-flood") as GeoJSONSource | undefined;
+    const source = map.getSource("outages-flood");
     if (source) {
       source.setData(floodGeoJson as never);
     }
@@ -229,6 +242,7 @@ export function OutagesAlertsDashboard() {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8787";
   const [severityFilter, setSeverityFilter] = useState<"all" | TimelineSeverity>("all");
   const [regionFilter, setRegionFilter] = useState("all");
+  const [showOutagesMap, setShowOutagesMap] = useState(false);
 
   const esbSummaryQuery = useAdapterSnapshot<EsbPayload>("esb-powercheck-outages", 60_000);
   const warningsSummaryQuery = useAdapterSnapshot<MetWarningsPayload>("met-warnings", 60_000);
@@ -437,11 +451,11 @@ export function OutagesAlertsDashboard() {
   ].some((query) => query.isError);
 
   return (
-    <section className="space-y-4">
+    <section className="dashboard-container space-y-4">
       {hasAnyError ? (
         <DegradedBanner message="One or more outage/alert feeds are unavailable. Timeline and map are showing partial data." />
       ) : null}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="dashboard-kpi-grid grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Card>
           <p className="text-sm text-muted-foreground">ESB Outages</p>
           <p className="mt-2 text-2xl font-semibold">
@@ -474,7 +488,17 @@ export function OutagesAlertsDashboard() {
           ESB outage locations and OPW flood-threshold stations.
         </p>
         <div className="mt-3">
-          <OutagesMap esbOutages={esbMapPoints} floodAlerts={floodAlerts} />
+          {showOutagesMap ? (
+            <OutagesMap esbOutages={esbMapPoints} floodAlerts={floodAlerts} />
+          ) : (
+            <button
+              className="rounded-md border px-3 py-2 text-sm"
+              onClick={() => setShowOutagesMap(true)}
+              type="button"
+            >
+              Load map
+            </button>
+          )}
         </div>
       </Card>
 
@@ -482,7 +506,11 @@ export function OutagesAlertsDashboard() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold tracking-tight">Unified Alert Timeline</h2>
           <div className="flex items-center gap-2">
+            <label className="sr-only" htmlFor="timeline-severity-filter">
+              Filter timeline by severity
+            </label>
             <select
+              id="timeline-severity-filter"
               className="rounded-md border bg-background px-2 py-1 text-sm"
               onChange={(event) =>
                 setSeverityFilter(event.target.value as "all" | TimelineSeverity)
@@ -494,7 +522,11 @@ export function OutagesAlertsDashboard() {
               <option value="warning">Warning</option>
               <option value="info">Info</option>
             </select>
+            <label className="sr-only" htmlFor="timeline-region-filter">
+              Filter timeline by region
+            </label>
             <select
+              id="timeline-region-filter"
               className="rounded-md border bg-background px-2 py-1 text-sm"
               onChange={(event) => setRegionFilter(event.target.value)}
               value={regionFilter}

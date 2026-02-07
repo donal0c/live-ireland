@@ -158,3 +158,22 @@
     transform: translateY(-4px);
   }
 }
+
+@layer components {
+  .dashboard-container {
+    container-type: inline-size;
+  }
+
+  @container (max-width: 900px) {
+    .dashboard-kpi-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @container (max-width: 640px) {
+    .dashboard-kpi-grid,
+    .dashboard-split-grid {
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+  }
+}

@@ -12,6 +12,7 @@ type DemandPoint = {
 };
 
 export function EirgridLivePanel() {
+  const [enabled, setEnabled] = useState(false);
   const [points, setPoints] = useState<DemandPoint[]>([]);
   const [status, setStatus] = useState<"connecting" | "live" | "stale" | "error">("connecting");
   const [lastSnapshotAt, setLastSnapshotAt] = useState<string | null>(null);
@@ -28,6 +29,10 @@ export function EirgridLivePanel() {
   });
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     const clearRetryTimer = () => {
       if (retryTimer.current) {
         clearTimeout(retryTimer.current);
@@ -95,7 +100,7 @@ export function EirgridLivePanel() {
       disconnectRef.current?.();
       disconnectRef.current = null;
     };
-  }, []);
+  }, [enabled]);
 
   const chartData = useMemo(
     () =>
@@ -108,6 +113,26 @@ export function EirgridLivePanel() {
       })),
     [points],
   );
+
+  if (!enabled) {
+    return (
+      <Card className="mt-4">
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold tracking-tight">EirGrid Demand Stream (SSE)</h2>
+          <p className="text-xs text-muted-foreground">
+            Enable the live demand stream to start subscription updates.
+          </p>
+          <button
+            className="rounded-md border px-3 py-2 text-sm"
+            onClick={() => setEnabled(true)}
+            type="button"
+          >
+            Start stream
+          </button>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="mt-4">
