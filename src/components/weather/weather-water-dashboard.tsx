@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge, Card } from "@tremor/react";
 import * as echarts from "echarts";
 import { useEffect, useMemo, useRef, useState } from "react";
-
+import { WeatherWaterMap } from "@/components/weather/weather-water-map";
 import { trpcClient } from "@/lib/trpc-client";
 
 type AdapterEnvelope<T> = {
@@ -273,6 +273,8 @@ export function WeatherWaterDashboard() {
           </div>
         </Card>
       </div>
+
+      <WeatherWaterMap />
     </section>
   );
 }

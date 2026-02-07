@@ -8,6 +8,14 @@ import { eirgridDemandChannel } from "@/server/realtime/eirgrid-channel";
 import { appRouter } from "@/server/trpc/router";
 
 const requestsPerMinute = new Map<string, { count: number; resetAt: number }>();
+const metStationIdPattern = /^[a-z0-9-]+$/i;
+
+type RainViewerResponse = {
+  host?: string;
+  radar?: {
+    past?: Array<{ path?: string }>;
+  };
+};
 
 const getClientIp = (value: string | undefined) => {
   if (!value) {
@@ -36,6 +44,15 @@ const rateLimit = (maxPerMinute: number) => {
     existing.count += 1;
     await next();
   };
+};
+
+const fetchJsonOrThrow = async <T>(url: string, signal?: AbortSignal): Promise<T> => {
+  const response = await fetch(url, signal ? { signal } : undefined);
+  if (!response.ok) {
+    throw new Error(`Request failed ${response.status} for ${url}`);
+  }
+
+  return (await response.json()) as T;
 };
 
 export const createApiApp = (adapterManager: AdapterManager) => {
@@ -67,6 +84,56 @@ export const createApiApp = (adapterManager: AdapterManager) => {
     return c.json({
       adapters: adapterManager.getStatuses(),
     });
+  });
+
+  app.get("/proxy/met/observations/:station", async (c) => {
+    const station = c.req.param("station");
+    if (!metStationIdPattern.test(station)) {
+      return c.json({ error: "invalid_station" }, 400);
+    }
+
+    try {
+      const data = await fetchJsonOrThrow<unknown[]>(
+        `https://prodapi.metweb.ie/observations/${station}/today`,
+        c.req.raw.signal,
+      );
+      return c.json(data);
+    } catch (error) {
+      console.error("[proxy] met observations failed", error);
+      return c.json({ error: "upstream_error" }, 502);
+    }
+  });
+
+  app.get("/proxy/weather/map-layers", async (c) => {
+    try {
+      const [opwRaw, warningsRaw, epaRaw, radarRaw] = await Promise.all([
+        fetchJsonOrThrow<unknown>("https://waterlevel.ie/geojson/latest/", c.req.raw.signal),
+        fetchJsonOrThrow<unknown>("https://prodapi.metweb.ie/warnings/active", c.req.raw.signal),
+        fetchJsonOrThrow<unknown>(
+          "https://gis.epa.ie/geoserver/EPA/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=EPA:AIR_MonitoringSites&outputFormat=application/json",
+          c.req.raw.signal,
+        ),
+        fetchJsonOrThrow<RainViewerResponse>(
+          "https://api.rainviewer.com/public/weather-maps.json",
+          c.req.raw.signal,
+        ),
+      ]);
+
+      const radarPath = radarRaw.radar?.past?.at(-1)?.path;
+      const host = radarRaw.host;
+      const radarTileUrl =
+        host && radarPath ? `${host}${radarPath}/256/{z}/{x}/{y}/2/1_1.png` : null;
+
+      return c.json({
+        epa: epaRaw,
+        opw: opwRaw,
+        radarTileUrl,
+        warnings: warningsRaw,
+      });
+    } catch (error) {
+      console.error("[proxy] weather map layers failed", error);
+      return c.json({ error: "upstream_error" }, 502);
+    }
   });
 
   app.use(
