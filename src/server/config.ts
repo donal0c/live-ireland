@@ -4,6 +4,7 @@ export type ApiRuntimeConfig = {
   eirgridPollIntervalMs: number;
   upstashUrl?: string;
   upstashToken?: string;
+  redisUrl?: string;
   supabaseUrl?: string;
   supabaseServiceRoleKey?: string;
 };
@@ -30,6 +31,10 @@ export const getRuntimeConfig = (): ApiRuntimeConfig => {
 
   if (process.env.UPSTASH_REDIS_REST_TOKEN) {
     config.upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  }
+
+  if (process.env.REDIS_URL) {
+    config.redisUrl = process.env.REDIS_URL;
   }
 
   if (process.env.SUPABASE_URL) {

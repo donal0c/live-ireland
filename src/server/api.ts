@@ -8,7 +8,21 @@ import { createSupabaseAdminClient } from "@/server/db/supabase";
 import { AdapterDataStore } from "@/server/store/adapter-data-store";
 
 const config = getRuntimeConfig();
-const cache = new ValkeyCache(config.upstashUrl, config.upstashToken);
+const cacheOptions: { upstashUrl?: string; upstashToken?: string; redisUrl?: string } = {};
+
+if (config.redisUrl) {
+  cacheOptions.redisUrl = config.redisUrl;
+}
+
+if (config.upstashUrl) {
+  cacheOptions.upstashUrl = config.upstashUrl;
+}
+
+if (config.upstashToken) {
+  cacheOptions.upstashToken = config.upstashToken;
+}
+
+const cache = new ValkeyCache(cacheOptions);
 const supabase = createSupabaseAdminClient(config.supabaseUrl, config.supabaseServiceRoleKey);
 const dataStore = new AdapterDataStore(supabase);
 const adapterManager = new AdapterManager({
@@ -32,6 +46,7 @@ console.log(`[api] supabase enabled: ${dataStore.enabled ? "yes" : "no"}`);
 
 const shutdown = () => {
   stopAdapters();
+  void cache.close();
   server.close();
 };
 

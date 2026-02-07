@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "dev:api": "tsx src/server/api.ts",
+    "dev:local": "concurrently -n WEB,API -c blue,green \"npm run dev\" \"npm run dev:api\"",
+    "infra:up": "./scripts/local/up.sh",
+    "infra:down": "./scripts/local/down.sh",
     "build": "next build",
     "start": "next start",
     "start:api": "tsx src/server/api.ts",
@@ -23,6 +26,7 @@
     "@upstash/redis": "^1.36.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "echarts": "^6.0.0",
     "hono": "^4.11.8",
     "lucide-react": "^0.563.0",
     "next": "16.1.6",
@@ -30,6 +34,7 @@
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "redis": "^5.10.0",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.6",
     "zustand": "^5.0.11"
@@ -40,6 +45,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
     "eventsource": "^4.1.0",
     "shadcn": "^3.8.4",
     "tailwindcss": "^4",

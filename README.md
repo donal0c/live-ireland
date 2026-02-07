@@ -54,14 +54,20 @@ Phase 1 and Phase 2 backend foundation are complete:
 
 ```bash
 npm install
-npm run dev
-npm run dev:api
+npm run infra:up
+npm run dev:local
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
 The frontend expects the API at `http://localhost:8787` by default.
-Configure via `.env` using `.env.example` as a template.
+Configure via `.env` using `.env.example` as a template. For local cache/pubsub, use `REDIS_URL=redis://localhost:6379`.
+
+Stop local infra with:
+
+```bash
+npm run infra:down
+```
 
 ## Adapter health endpoints
 

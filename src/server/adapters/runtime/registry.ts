@@ -1,6 +1,11 @@
 import type { Adapter } from "@/server/adapters/core/types";
 import { DublinBikesAdapter } from "@/server/adapters/definitions/dublin-bikes-adapter";
+import { EirgridCo2Adapter } from "@/server/adapters/definitions/eirgrid-co2-adapter";
 import { EirgridDemandAdapter } from "@/server/adapters/definitions/eirgrid-demand-adapter";
+import { EirgridFrequencyAdapter } from "@/server/adapters/definitions/eirgrid-frequency-adapter";
+import { EirgridGenerationAdapter } from "@/server/adapters/definitions/eirgrid-generation-adapter";
+import { EirgridInterconnectionAdapter } from "@/server/adapters/definitions/eirgrid-interconnection-adapter";
+import { EirgridWindAdapter } from "@/server/adapters/definitions/eirgrid-wind-adapter";
 import { EpaAirQualityAdapter } from "@/server/adapters/definitions/epa-air-quality-adapter";
 import { EsbOutagesAdapter } from "@/server/adapters/definitions/esb-outages-adapter";
 import { GasNetworksAdapter } from "@/server/adapters/definitions/gas-networks-adapter";
@@ -16,6 +21,11 @@ import { TiiTrafficAdapter } from "@/server/adapters/definitions/tii-traffic-ada
 export const createAdapterRegistry = (eirgridPollIntervalMs: number): Adapter<unknown>[] => {
   return [
     new EirgridDemandAdapter(eirgridPollIntervalMs),
+    new EirgridGenerationAdapter(),
+    new EirgridWindAdapter(),
+    new EirgridFrequencyAdapter(),
+    new EirgridCo2Adapter(),
+    new EirgridInterconnectionAdapter(),
     new SemoMarketAdapter(),
     new EsbOutagesAdapter(),
     new MetWarningsAdapter(),
