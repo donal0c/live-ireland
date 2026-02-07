@@ -2,6 +2,7 @@ import { trpcServer } from "@hono/trpc-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
+import type { AdapterManager } from "@/server/adapters/runtime/adapter-manager";
 import { getRuntimeConfig } from "@/server/config";
 import { eirgridDemandChannel } from "@/server/realtime/eirgrid-channel";
 import { appRouter } from "@/server/trpc/router";
@@ -37,7 +38,7 @@ const rateLimit = (maxPerMinute: number) => {
   };
 };
 
-export const createApiApp = () => {
+export const createApiApp = (adapterManager: AdapterManager) => {
   const config = getRuntimeConfig();
   const app = new Hono();
 
@@ -50,12 +51,22 @@ export const createApiApp = () => {
   });
 
   app.get("/health", (c) => {
-    return c.json({ ok: true, now: new Date().toISOString() });
+    return c.json({
+      adapterCount: adapterManager.getStatuses().length,
+      now: new Date().toISOString(),
+      ok: true,
+    });
   });
 
   app.get("/metrics", (c) => {
     const activeIps = requestsPerMinute.size;
     return c.text(`live_ireland_active_ip_count ${activeIps}\n`);
+  });
+
+  app.get("/adapters/health", (c) => {
+    return c.json({
+      adapters: adapterManager.getStatuses(),
+    });
   });
 
   app.use(
@@ -64,6 +75,7 @@ export const createApiApp = () => {
       router: appRouter,
       endpoint: "/trpc",
       createContext: () => ({
+        adapterManager,
         channel: eirgridDemandChannel,
       }),
       onError: ({ error, path }) => {

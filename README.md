@@ -31,6 +31,7 @@ Phase 1 and Phase 2 backend foundation are complete:
 - SSE subscriptions via `httpSubscriptionLink`
 - EirGrid demand poller with fan-out channel
 - Health and metrics endpoints
+- Multi-source adapter runtime (retry, polling cadence, per-adapter health)
 - Optional Valkey/Upstash cache + pub/sub hooks
 - Supabase Timescale migration scaffold
 - Fly.io Dublin deployment skeleton (`fly.api.toml`)
@@ -61,6 +62,11 @@ Open [http://localhost:3000](http://localhost:3000).
 
 The frontend expects the API at `http://localhost:8787` by default.
 Configure via `.env` using `.env.example` as a template.
+
+## Adapter health endpoints
+
+- `GET /adapters/health` - per-adapter run state and timings
+- `GET /trpc/dashboard.adapterStatuses` - same data over tRPC
 
 ## Quality checks
 

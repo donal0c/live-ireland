@@ -38,6 +38,18 @@ export const appRouter = t.router({
           yield snapshot;
         }
       }),
+    adapterStatuses: publicProcedure.query(({ ctx }) => {
+      return ctx.adapterManager.getStatuses();
+    }),
+    latestAdapterSnapshot: publicProcedure
+      .input(
+        z.object({
+          adapterId: z.string().min(1),
+        }),
+      )
+      .query(({ ctx, input }) => {
+        return ctx.adapterManager.getLatest(input.adapterId);
+      }),
   }),
 });
 

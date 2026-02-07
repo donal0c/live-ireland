@@ -1,6 +1,6 @@
 import { Redis } from "@upstash/redis";
 
-import type { EirgridDemandSnapshot } from "@/server/api/types";
+import type { AdapterEnvelope } from "@/server/adapters/core/types";
 
 export class ValkeyCache {
   private readonly redis: Redis | null;
@@ -13,19 +13,19 @@ export class ValkeyCache {
     return this.redis !== null;
   }
 
-  async cacheDemandSnapshot(snapshot: EirgridDemandSnapshot) {
+  async cacheAdapterSnapshot(adapterId: string, snapshot: AdapterEnvelope<unknown>) {
     if (!this.redis) {
       return;
     }
 
-    await this.redis.set("latest:eirgrid:demand", snapshot, { ex: 60 * 15 });
+    await this.redis.set(`latest:${adapterId}`, snapshot, { ex: 60 * 15 });
   }
 
-  async publishDemandSnapshot(snapshot: EirgridDemandSnapshot) {
+  async publishAdapterSnapshot(adapterId: string, snapshot: AdapterEnvelope<unknown>) {
     if (!this.redis) {
       return;
     }
 
-    await this.redis.publish("eirgrid:demand", JSON.stringify(snapshot));
+    await this.redis.publish(`adapter:${adapterId}`, JSON.stringify(snapshot));
   }
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { AreaChart, Card } from "@tremor/react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -13,6 +14,11 @@ type DemandPoint = {
 export function EirgridLivePanel() {
   const [points, setPoints] = useState<DemandPoint[]>([]);
   const [status, setStatus] = useState<"connecting" | "live" | "error">("connecting");
+  const adapterStatusQuery = useQuery({
+    queryFn: () => trpcClient.dashboard.adapterStatuses.query(),
+    queryKey: ["adapter-statuses"],
+    refetchInterval: 30_000,
+  });
 
   useEffect(() => {
     const subscription = trpcClient.dashboard.eirgridDemand.subscribe(
@@ -64,6 +70,15 @@ export function EirgridLivePanel() {
         index="Time"
         noDataText="Waiting for stream data"
       />
+
+      <div className="mt-4 border-t pt-3">
+        <p className="text-xs text-muted-foreground">
+          Adapter Health:{" "}
+          {adapterStatusQuery.data
+            ? `${adapterStatusQuery.data.filter((item) => item.state !== "degraded").length}/${adapterStatusQuery.data.length} healthy`
+            : "loading"}
+        </p>
+      </div>
     </Card>
   );
 }

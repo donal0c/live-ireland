@@ -1,19 +1,25 @@
 import { serve } from "@hono/node-server";
-
+import { AdapterManager } from "@/server/adapters/runtime/adapter-manager";
+import { createAdapterRegistry } from "@/server/adapters/runtime/registry";
 import { createApiApp } from "@/server/api/app";
 import { ValkeyCache } from "@/server/cache/valkey";
 import { getRuntimeConfig } from "@/server/config";
-import { startEirgridPoller } from "@/server/realtime/eirgrid-poller";
+import { createSupabaseAdminClient } from "@/server/db/supabase";
+import { AdapterDataStore } from "@/server/store/adapter-data-store";
 
 const config = getRuntimeConfig();
 const cache = new ValkeyCache(config.upstashUrl, config.upstashToken);
-
-const stopPoller = startEirgridPoller({
+const supabase = createSupabaseAdminClient(config.supabaseUrl, config.supabaseServiceRoleKey);
+const dataStore = new AdapterDataStore(supabase);
+const adapterManager = new AdapterManager({
+  adapters: createAdapterRegistry(config.eirgridPollIntervalMs),
   cache,
-  intervalMs: config.eirgridPollIntervalMs,
+  dataStore,
 });
 
-const app = createApiApp();
+const stopAdapters = adapterManager.start();
+
+const app = createApiApp(adapterManager);
 
 const server = serve({
   fetch: app.fetch,
@@ -22,9 +28,10 @@ const server = serve({
 
 console.log(`[api] listening on :${config.port}`);
 console.log(`[api] valkey enabled: ${cache.enabled ? "yes" : "no"}`);
+console.log(`[api] supabase enabled: ${dataStore.enabled ? "yes" : "no"}`);
 
 const shutdown = () => {
-  stopPoller();
+  stopAdapters();
   server.close();
 };
 
