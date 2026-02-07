@@ -1,5 +1,7 @@
 import { Card } from "@tremor/react";
 
+import { EirgridLivePanel } from "@/components/grid/eirgrid-live-panel";
+
 export default function GridEnergyPage() {
   return (
     <section className="space-y-4">
@@ -27,6 +29,8 @@ export default function GridEnergyPage() {
           <p className="mt-1 text-xs text-muted-foreground">Live feed pending</p>
         </Card>
       </div>
+
+      <EirgridLivePanel />
     </section>
   );
 }

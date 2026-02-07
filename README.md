@@ -15,7 +15,7 @@ The goal is to provide a single, fast view of Ireland's current infrastructure s
 
 ## Current phase
 
-Phase 1 foundation and scaffolding is complete:
+Phase 1 and Phase 2 backend foundation are complete:
 
 - Next.js 16 + React 19 + Turbopack
 - Tailwind CSS v4 + Lightning CSS processing
@@ -27,6 +27,13 @@ Phase 1 foundation and scaffolding is complete:
 - Dark/light theme toggle
 - Basic loading and route-level error boundaries
 - Biome linting/formatting and strict TypeScript configuration
+- Hono API server with tRPC v11 router
+- SSE subscriptions via `httpSubscriptionLink`
+- EirGrid demand poller with fan-out channel
+- Health and metrics endpoints
+- Optional Valkey/Upstash cache + pub/sub hooks
+- Supabase Timescale migration scaffold
+- Fly.io Dublin deployment skeleton (`fly.api.toml`)
 
 ## Tech stack
 
@@ -47,9 +54,13 @@ Phase 1 foundation and scaffolding is complete:
 ```bash
 npm install
 npm run dev
+npm run dev:api
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+The frontend expects the API at `http://localhost:8787` by default.
+Configure via `.env` using `.env.example` as a template.
 
 ## Quality checks
 
@@ -68,4 +79,3 @@ This repository follows the recommendations in:
 Data-source research and broader architecture context are indexed in:
 
 - `/Users/donalocallaghan/workspace/vibes/Live_Ireland/CLAUDE.md`
-
