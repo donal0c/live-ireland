@@ -1,0 +1,71 @@
+# Live Ireland
+
+Live Ireland is a real-time national dashboard for Ireland that brings critical public infrastructure feeds into one interface.
+
+## What the app does
+
+The dashboard is split into four live-operational tabs:
+
+- **Grid & Energy**: National electricity demand, generation mix, wind share, grid frequency, and market context.
+- **Weather & Water**: Weather conditions and warnings with national water-level monitoring.
+- **Transport**: Rail, tram, and traffic telemetry.
+- **Outages & Alerts**: Power outages and active incidents/warnings.
+
+The goal is to provide a single, fast view of Ireland's current infrastructure status using no-auth public data sources.
+
+## Current phase
+
+Phase 1 foundation and scaffolding is complete:
+
+- Next.js 16 + React 19 + Turbopack
+- Tailwind CSS v4 + Lightning CSS processing
+- shadcn/ui base system
+- Tremor dashboard component integration
+- TanStack Query provider setup
+- Zustand UI store skeleton
+- Responsive dashboard shell and routing
+- Dark/light theme toggle
+- Basic loading and route-level error boundaries
+- Biome linting/formatting and strict TypeScript configuration
+
+## Tech stack
+
+- **Frontend**: Next.js 16, React 19, TypeScript
+- **Styling/UI**: Tailwind CSS v4, shadcn/ui, Tremor
+- **State/Data**: Zustand, TanStack Query
+- **Quality**: Biome, strict TypeScript
+
+## Routes
+
+- `/grid-energy`
+- `/weather-water`
+- `/transport`
+- `/outages-alerts`
+
+## Getting started
+
+```bash
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+## Quality checks
+
+```bash
+npm run lint
+npx tsc --noEmit
+npm run build
+```
+
+## Research and decisions
+
+This repository follows the recommendations in:
+
+- `../ideas_and_research/technology_stack/08_recommended_stack.md`
+
+Data-source research and broader architecture context are indexed in:
+
+- `/Users/donalocallaghan/workspace/vibes/Live_Ireland/CLAUDE.md`
+

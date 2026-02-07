@@ -1,0 +1,88 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { dashboardTabs } from "@/lib/navigation";
+
+export function DashboardShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  return (
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,_var(--color-muted),_transparent_45%),linear-gradient(to_bottom,var(--color-background),var(--color-background))]">
+      <div className="mx-auto flex min-h-screen max-w-7xl gap-4 p-3 sm:p-4 md:gap-6 md:p-6">
+        <aside className="hidden w-72 shrink-0 rounded-2xl border bg-card/90 p-4 backdrop-blur lg:flex lg:flex-col">
+          <div className="space-y-1">
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+              Live Ireland
+            </p>
+            <h1 className="text-xl font-semibold tracking-tight">National Dashboard</h1>
+          </div>
+
+          <nav className="mt-6 space-y-2">
+            {dashboardTabs.map((tab) => {
+              const isActive = pathname === tab.href;
+              const Icon = tab.icon;
+              return (
+                <Button
+                  asChild
+                  className="h-auto w-full justify-start gap-3 px-3 py-3"
+                  key={tab.href}
+                  variant={isActive ? "default" : "ghost"}
+                >
+                  <Link href={tab.href}>
+                    <Icon className="size-4" />
+                    <span className="text-left">
+                      <span className="block text-sm font-medium">{tab.label}</span>
+                      <span className="block text-xs text-muted-foreground">{tab.description}</span>
+                    </span>
+                  </Link>
+                </Button>
+              );
+            })}
+          </nav>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
+          <header className="rounded-2xl border bg-card/90 p-3 backdrop-blur sm:p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-base font-semibold sm:text-lg">Real-Time National Signals</h2>
+                <p className="text-xs text-muted-foreground sm:text-sm">
+                  Live streams for grid, weather, transport, and national alerts.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">Phase 1 Scaffold</Badge>
+                <ThemeToggle />
+              </div>
+            </div>
+
+            <nav className="mt-3 flex gap-2 overflow-x-auto lg:hidden">
+              {dashboardTabs.map((tab) => {
+                const isActive = pathname === tab.href;
+                return (
+                  <Button
+                    asChild
+                    key={tab.href}
+                    size="sm"
+                    variant={isActive ? "default" : "outline"}
+                  >
+                    <Link href={tab.href}>{tab.label}</Link>
+                  </Button>
+                );
+              })}
+            </nav>
+          </header>
+
+          <main className="flex-1 rounded-2xl border bg-card/90 p-4 backdrop-blur sm:p-6">
+            {children}
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+}
