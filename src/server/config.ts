@@ -2,12 +2,15 @@ export type ApiRuntimeConfig = {
   port: number;
   corsOrigin: string;
   eirgridPollIntervalMs: number;
+  esbSubscriptionKey: string;
   upstashUrl?: string;
   upstashToken?: string;
   redisUrl?: string;
   supabaseUrl?: string;
   supabaseServiceRoleKey?: string;
 };
+
+const defaultEsbSubscriptionKey = "f713e48af3a746bbb1b110ab69113960";
 
 const getNumber = (value: string | undefined, fallback: number) => {
   if (!value) {
@@ -23,6 +26,7 @@ export const getRuntimeConfig = (): ApiRuntimeConfig => {
     port: getNumber(process.env.API_PORT, 8787),
     corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
     eirgridPollIntervalMs: getNumber(process.env.EIRGRID_POLL_INTERVAL_MS, 30_000),
+    esbSubscriptionKey: process.env.ESB_SUBSCRIPTION_KEY || defaultEsbSubscriptionKey,
   };
 
   if (process.env.UPSTASH_REDIS_REST_URL) {

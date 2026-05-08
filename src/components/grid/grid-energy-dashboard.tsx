@@ -1,34 +1,17 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { Card } from "@tremor/react";
 import * as echarts from "echarts";
-import {
-  Activity,
-  Cable,
-  DollarSign,
-  Factory,
-  Flame,
-  Gauge,
-  Leaf,
-  Wind,
-  Zap,
-  ZapOff,
-} from "lucide-react";
+import { Cable, DollarSign, Flame, Leaf, ZapOff } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import {
+  EmptyState,
+  KpiCard,
+  useAdapterSnapshot,
+} from "@/components/dashboard/dashboard-primitives";
 import { DegradedBanner } from "@/components/ui/degraded-banner";
-import { trpcClient } from "@/lib/trpc-client";
 import { cn } from "@/lib/utils";
-
-type AdapterEnvelope<T> = {
-  adapterId: string;
-  capturedAt: string;
-  payload: T;
-  recordCount: number;
-  summary: string;
-};
 
 type ScalarPayload = {
   value: number;
@@ -138,17 +121,6 @@ const downloadText = (filename: string, content: string, mimeType: string) => {
   URL.revokeObjectURL(url);
 };
 
-function useAdapterSnapshot<T>(adapterId: string, refetchInterval = 30_000) {
-  return useQuery({
-    queryFn: async () => {
-      const result = await trpcClient.dashboard.latestAdapterSnapshot.query({ adapterId });
-      return result as AdapterEnvelope<T> | null;
-    },
-    queryKey: ["adapter-snapshot", adapterId],
-    refetchInterval,
-  });
-}
-
 function EChart({ option, className }: { option: echarts.EChartsOption; className?: string }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<echarts.EChartsType | null>(null);
@@ -182,46 +154,6 @@ function EChart({ option, className }: { option: echarts.EChartsOption; classNam
   }, []);
 
   return <div className={cn("h-64 w-full", className)} ref={rootRef} />;
-}
-
-function KpiCard({
-  icon: Icon,
-  label,
-  value,
-  unit,
-  subtext,
-  accentColor,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string | number;
-  unit?: string | undefined;
-  subtext?: string | undefined;
-  accentColor?: string | undefined;
-}) {
-  return (
-    <div className="kpi-card group rounded-xl border bg-card/80 p-4 backdrop-blur transition-all duration-200 hover:bg-card/95 hover:shadow-md">
-      <div className="flex items-start justify-between">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-        <div
-          className="flex h-8 w-8 items-center justify-center rounded-lg opacity-60 transition-opacity group-hover:opacity-100"
-          style={{ backgroundColor: `${accentColor ?? "var(--kpi-accent)"}15` }}
-        >
-          <Icon
-            className="h-4 w-4"
-            style={{ color: accentColor ?? "var(--kpi-accent)" }}
-          />
-        </div>
-      </div>
-      <div className="mt-2 metric-value">
-        <span className="text-2xl font-bold tabular-nums tracking-tight">{value}</span>
-        {unit ? <span className="ml-1 text-sm font-medium text-muted-foreground">{unit}</span> : null}
-      </div>
-      {subtext ? (
-        <p className="mt-1 text-[11px] text-muted-foreground">{subtext}</p>
-      ) : null}
-    </div>
-  );
 }
 
 export function GridEnergyDashboard() {
@@ -299,7 +231,8 @@ export function GridEnergyDashboard() {
   const windPercent = generation > 0 ? Math.min(100, (wind / generation) * 100) : 0;
 
   const gaugeOption = useMemo<echarts.EChartsOption>(() => {
-    const isDark = typeof window !== "undefined" && document.documentElement.classList.contains("dark");
+    const isDark =
+      typeof window !== "undefined" && document.documentElement.classList.contains("dark");
     const axisLineColor = isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb";
     const textColor = isDark ? "#e0e0e8" : "#1f2937";
     const pointerColor = isDark ? "#a0a0b0" : "#374151";
@@ -400,7 +333,8 @@ export function GridEnergyDashboard() {
   }, [demand, frequency, generation, windPercent]);
 
   const lineOption = useMemo<echarts.EChartsOption>(() => {
-    const isDark = typeof window !== "undefined" && document.documentElement.classList.contains("dark");
+    const isDark =
+      typeof window !== "undefined" && document.documentElement.classList.contains("dark");
     const now = Date.now();
     const rangeWindowMs =
       rangeHours === "all"
@@ -562,6 +496,7 @@ export function GridEnergyDashboard() {
           label="SEMO Price"
           value={semoQuery.data?.payload.latestPrice ?? "--"}
           unit={semoQuery.data?.payload.latestPrice != null ? "EUR/MWh" : undefined}
+          capturedAt={semoQuery.data?.capturedAt ?? null}
           accentColor="#f59e0b"
         />
         <KpiCard
@@ -569,6 +504,7 @@ export function GridEnergyDashboard() {
           label="CO2 Intensity"
           value={co2Query.data?.payload.value?.toFixed(1) ?? "--"}
           unit="gCO2/kWh"
+          capturedAt={co2Query.data?.capturedAt ?? null}
           accentColor="#22c55e"
         />
         <KpiCard
@@ -581,6 +517,7 @@ export function GridEnergyDashboard() {
           }
           unit="MW"
           subtext={`EWIC: ${interconnectionQuery.data?.payload.ewicMw ?? "--"} / Moyle: ${interconnectionQuery.data?.payload.moyleMw ?? "--"} MW`}
+          capturedAt={interconnectionQuery.data?.capturedAt ?? null}
           accentColor="#6366f1"
         />
         <KpiCard
@@ -588,6 +525,7 @@ export function GridEnergyDashboard() {
           label="ESB Outages"
           value={esbQuery.data?.payload.outageCount ?? "--"}
           subtext={`Fault: ${esbQuery.data?.payload.faultCount ?? "--"} / Planned: ${esbQuery.data?.payload.plannedCount ?? "--"}`}
+          capturedAt={esbQuery.data?.capturedAt ?? null}
           accentColor="#ef4444"
         />
       </div>
@@ -595,12 +533,13 @@ export function GridEnergyDashboard() {
       {/* ─── Demand vs Generation Stream ─── */}
       <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
         <h2 className="text-lg font-bold tracking-tight">Demand vs Generation</h2>
-        <p className="text-xs text-muted-foreground">
-          Streaming time-series with session DataZoom
-        </p>
+        <p className="text-xs text-muted-foreground">Streaming time-series with session DataZoom</p>
         <div className="mt-4 grid gap-3 md:grid-cols-4">
           <div>
-            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="grid-range-selector">
+            <label
+              className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+              htmlFor="grid-range-selector"
+            >
               Range
             </label>
             <select
@@ -616,7 +555,10 @@ export function GridEnergyDashboard() {
             </select>
           </div>
           <div>
-            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="grid-aggregation-selector">
+            <label
+              className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+              htmlFor="grid-aggregation-selector"
+            >
               Aggregation
             </label>
             <select
@@ -632,7 +574,10 @@ export function GridEnergyDashboard() {
             </select>
           </div>
           <div>
-            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="grid-custom-start">
+            <label
+              className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+              htmlFor="grid-custom-start"
+            >
               Custom Start
             </label>
             <input
@@ -644,7 +589,10 @@ export function GridEnergyDashboard() {
             />
           </div>
           <div>
-            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="grid-custom-end">
+            <label
+              className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+              htmlFor="grid-custom-end"
+            >
               Custom End
             </label>
             <input
@@ -656,7 +604,14 @@ export function GridEnergyDashboard() {
             />
           </div>
         </div>
-        {showCharts ? <EChart option={lineOption} /> : null}
+        {showCharts && series.length > 0 ? <EChart option={lineOption} /> : null}
+        {showCharts && series.length === 0 ? (
+          <EmptyState
+            className="mt-4"
+            title="No local history yet"
+            description="The chart fills after the dashboard receives matching demand and generation snapshots in this browser session."
+          />
+        ) : null}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             className="rounded-lg border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
@@ -705,24 +660,38 @@ export function GridEnergyDashboard() {
         </p>
         <div className="dashboard-kpi-grid mt-4 grid gap-4 md:grid-cols-3">
           <div className="kpi-card rounded-xl border bg-card/80 p-4">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">This Hour Avg</p>
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              This Hour Avg
+            </p>
             <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight metric-value">
-              {comparativeSummary.thisHourDemand?.toFixed(1) ?? "--"} <span className="text-sm font-medium text-muted-foreground">MW</span>
+              {comparativeSummary.thisHourDemand?.toFixed(1) ?? "--"}{" "}
+              <span className="text-sm font-medium text-muted-foreground">MW</span>
             </p>
           </div>
           <div className="kpi-card rounded-xl border bg-card/80 p-4">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Previous Hour Avg</p>
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              Previous Hour Avg
+            </p>
             <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight metric-value">
-              {comparativeSummary.previousHourDemand?.toFixed(1) ?? "--"} <span className="text-sm font-medium text-muted-foreground">MW</span>
+              {comparativeSummary.previousHourDemand?.toFixed(1) ?? "--"}{" "}
+              <span className="text-sm font-medium text-muted-foreground">MW</span>
             </p>
           </div>
           <div className="kpi-card rounded-xl border bg-card/80 p-4">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Delta</p>
-            <p className={cn(
-              "mt-1 text-2xl font-bold tabular-nums tracking-tight metric-value",
-              comparativeSummary.delta !== null && comparativeSummary.delta > 0 && "text-[oklch(0.65_0.22_25)]",
-              comparativeSummary.delta !== null && comparativeSummary.delta < 0 && "text-[oklch(0.65_0.18_155)]",
-            )}>
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              Delta
+            </p>
+            <p
+              className={cn(
+                "mt-1 text-2xl font-bold tabular-nums tracking-tight metric-value",
+                comparativeSummary.delta !== null &&
+                  comparativeSummary.delta > 0 &&
+                  "text-[oklch(0.65_0.22_25)]",
+                comparativeSummary.delta !== null &&
+                  comparativeSummary.delta < 0 &&
+                  "text-[oklch(0.65_0.18_155)]",
+              )}
+            >
               {comparativeSummary.delta === null
                 ? "--"
                 : `${comparativeSummary.delta > 0 ? "+" : ""}${comparativeSummary.delta}`}{" "}
@@ -739,6 +708,7 @@ export function GridEnergyDashboard() {
           label="Gas Networks Live Points"
           value={gasQuery.data?.payload.itemCount ?? "--"}
           subtext="Entry point flows and pressures"
+          capturedAt={gasQuery.data?.capturedAt ?? null}
           accentColor="#f97316"
         />
 

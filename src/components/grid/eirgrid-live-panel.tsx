@@ -139,9 +139,7 @@ export function EirgridLivePanel() {
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-lg font-bold tracking-tight">EirGrid Demand Stream (SSE)</h2>
         <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          {status === "live" && (
-            <span className="live-dot" />
-          )}
+          {status === "live" && <span className="live-dot" />}
           Status: {status}
           {retryCount > 0 ? ` (retry ${retryCount})` : ""}
         </p>

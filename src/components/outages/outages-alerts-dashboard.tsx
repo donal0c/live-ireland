@@ -7,13 +7,13 @@ import { Badge } from "@tremor/react";
 import { cellToLatLng, latLngToCell } from "h3-js";
 import { AlertOctagon, AlertTriangle, CloudLightning, Info, MapPin, Zap } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  KpiCard,
+  MapStatusOverlay,
+  useAdapterSnapshot,
+} from "@/components/dashboard/dashboard-primitives";
+import { setGeoJsonSourceData } from "@/components/dashboard/maplibre-utils";
 import { DegradedBanner } from "@/components/ui/degraded-banner";
-import { trpcClient } from "@/lib/trpc-client";
-
-type AdapterEnvelope<T> = {
-  capturedAt: string;
-  payload: T;
-};
 
 type EsbPayload = {
   faultCount: number;
@@ -92,30 +92,6 @@ type LazyMapInstance = {
   remove: () => void;
 };
 
-const getGeoJsonSource = (source: unknown): { setData: (data: unknown) => void } | null => {
-  if (!source || typeof source !== "object" || !("setData" in source)) {
-    return null;
-  }
-
-  const setData = (source as { setData?: unknown }).setData;
-  if (typeof setData !== "function") {
-    return null;
-  }
-
-  return { setData: setData as (data: unknown) => void };
-};
-
-const useAdapterSnapshot = <T,>(adapterId: string, refetchInterval = 30_000) => {
-  return useQuery({
-    queryFn: async () => {
-      const result = await trpcClient.dashboard.latestAdapterSnapshot.query({ adapterId });
-      return result as AdapterEnvelope<T> | null;
-    },
-    queryKey: ["adapter-snapshot", adapterId],
-    refetchInterval,
-  });
-};
-
 const toFeatureCollection = <T extends Record<string, number | string>>(
   points: T[],
   latKey: keyof T,
@@ -148,6 +124,7 @@ function OutagesMap({
   const mapRef = useRef<LazyMapInstance | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [maplibreModule, setMaplibreModule] = useState<null | typeof import("maplibre-gl")>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   const esbGeoJson = useMemo(() => toFeatureCollection(esbOutages, "lat", "lng"), [esbOutages]);
   const floodGeoJson = useMemo(() => toFeatureCollection(floodAlerts, "lat", "lng"), [floodAlerts]);
@@ -217,6 +194,8 @@ function OutagesMap({
           "circle-opacity": 0.8,
         },
       });
+
+      setMapReady(true);
     });
 
     mapRef.current = map as unknown as LazyMapInstance;
@@ -224,32 +203,43 @@ function OutagesMap({
     return () => {
       map.remove();
       mapRef.current = null;
+      setMapReady(false);
     };
   }, [maplibreModule]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) {
+    if (!map || !mapReady) {
       return;
     }
-    const source = getGeoJsonSource(map.getSource("outages-esb"));
-    if (source) {
-      source.setData(esbGeoJson as never);
-    }
-  }, [esbGeoJson]);
+    setGeoJsonSourceData(map, "outages-esb", esbGeoJson);
+  }, [esbGeoJson, mapReady]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) {
+    if (!map || !mapReady) {
       return;
     }
-    const source = getGeoJsonSource(map.getSource("outages-flood"));
-    if (source) {
-      source.setData(floodGeoJson as never);
-    }
-  }, [floodGeoJson]);
+    setGeoJsonSourceData(map, "outages-flood", floodGeoJson);
+  }, [floodGeoJson, mapReady]);
 
-  return <div className="h-[420px] overflow-hidden rounded-md border" ref={containerRef} />;
+  const signalCount = esbGeoJson.features.length + floodGeoJson.features.length;
+
+  return (
+    <div className="relative h-[420px] overflow-hidden rounded-md border">
+      <div className="h-full" ref={containerRef} />
+      <MapStatusOverlay
+        description="The basemap is readying before outage and flood layers are applied."
+        title="Loading alert map"
+        visible={!mapReady}
+      />
+      <MapStatusOverlay
+        description="No outage or flood-threshold locations are available from the current feeds."
+        title="No alert locations yet"
+        visible={mapReady && signalCount === 0}
+      />
+    </div>
+  );
 }
 
 const badgeColorForSeverity = (severity: TimelineSeverity) => {
@@ -530,60 +520,33 @@ export function OutagesAlertsDashboard() {
         <DegradedBanner message="One or more outage/alert feeds are unavailable. Timeline and map are showing partial data." />
       ) : null}
       <div className="dashboard-kpi-grid grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        {/* ESB Outages */}
-        <div className="group kpi-card rounded-xl border bg-card/80 p-4 backdrop-blur transition-all duration-200 hover:bg-card/95 hover:shadow-md" style={{ "--kpi-accent": "#ef4444" } as React.CSSProperties}>
-          <div className="flex items-start justify-between">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">ESB Outages</p>
-            <div className="rounded-lg bg-red-500/10 p-1.5">
-              <Zap className="h-4 w-4 text-red-500" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight metric-value">
-            {esbSummaryQuery.data?.payload.outageCount ?? "--"}
-          </p>
-        </div>
-        {/* Weather Warnings */}
-        <div className="group kpi-card rounded-xl border bg-card/80 p-4 backdrop-blur transition-all duration-200 hover:bg-card/95 hover:shadow-md" style={{ "--kpi-accent": "#f59e0b" } as React.CSSProperties}>
-          <div className="flex items-start justify-between">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Weather Warnings</p>
-            <div className="rounded-lg bg-amber-500/10 p-1.5">
-              <CloudLightning className="h-4 w-4 text-amber-500" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight metric-value">
-            {warningsSummaryQuery.data?.payload.warningCount ?? "--"}
-          </p>
-        </div>
-        {/* Critical Alerts */}
-        <div className="group kpi-card rounded-xl border bg-card/80 p-4 backdrop-blur transition-all duration-200 hover:bg-card/95 hover:shadow-md" style={{ "--kpi-accent": "#dc2626" } as React.CSSProperties}>
-          <div className="flex items-start justify-between">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Critical Alerts</p>
-            <div className="rounded-lg bg-red-600/10 p-1.5">
-              <AlertOctagon className="h-4 w-4 text-red-600" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight metric-value">{counts.critical}</p>
-        </div>
-        {/* Warning Alerts */}
-        <div className="group kpi-card rounded-xl border bg-card/80 p-4 backdrop-blur transition-all duration-200 hover:bg-card/95 hover:shadow-md" style={{ "--kpi-accent": "#f97316" } as React.CSSProperties}>
-          <div className="flex items-start justify-between">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Warning Alerts</p>
-            <div className="rounded-lg bg-orange-500/10 p-1.5">
-              <AlertTriangle className="h-4 w-4 text-orange-500" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight metric-value">{counts.warning}</p>
-        </div>
-        {/* Info Alerts */}
-        <div className="group kpi-card rounded-xl border bg-card/80 p-4 backdrop-blur transition-all duration-200 hover:bg-card/95 hover:shadow-md" style={{ "--kpi-accent": "#3b82f6" } as React.CSSProperties}>
-          <div className="flex items-start justify-between">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Info Alerts</p>
-            <div className="rounded-lg bg-blue-500/10 p-1.5">
-              <Info className="h-4 w-4 text-blue-500" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight metric-value">{counts.info}</p>
-        </div>
+        <KpiCard
+          icon={Zap}
+          label="ESB Outages"
+          value={esbSummaryQuery.data?.payload.outageCount ?? "--"}
+          capturedAt={esbSummaryQuery.data?.capturedAt ?? null}
+          accentColor="#ef4444"
+        />
+        <KpiCard
+          icon={CloudLightning}
+          label="Weather Warnings"
+          value={warningsSummaryQuery.data?.payload.warningCount ?? "--"}
+          capturedAt={warningsSummaryQuery.data?.capturedAt ?? null}
+          accentColor="#f59e0b"
+        />
+        <KpiCard
+          icon={AlertOctagon}
+          label="Critical Alerts"
+          value={counts.critical}
+          accentColor="#dc2626"
+        />
+        <KpiCard
+          icon={AlertTriangle}
+          label="Warning Alerts"
+          value={counts.warning}
+          accentColor="#f97316"
+        />
+        <KpiCard icon={Info} label="Info Alerts" value={counts.info} accentColor="#3b82f6" />
       </div>
 
       <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">

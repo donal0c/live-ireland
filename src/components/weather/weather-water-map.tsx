@@ -4,8 +4,10 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import { Card } from "@tremor/react";
 import type { FeatureCollection as GeoJsonFeatureCollection } from "geojson";
-import maplibregl, { type GeoJSONSource } from "maplibre-gl";
+import maplibregl from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { MapStatusOverlay } from "@/components/dashboard/dashboard-primitives";
+import { setGeoJsonSourceData } from "@/components/dashboard/maplibre-utils";
 
 type MetObservation = {
   date?: string;
@@ -98,6 +100,9 @@ export function WeatherWaterMap() {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8787";
   const mapRef = useRef<maplibregl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapLayerError, setMapLayerError] = useState(false);
+  const [mapLayersLoaded, setMapLayersLoaded] = useState(false);
 
   const [selectedStation, setSelectedStation] = useState(metStations[0]?.slug ?? "dublinairport");
   const [stationObservation, setStationObservation] = useState<MetObservation | null>(null);
@@ -188,6 +193,8 @@ export function WeatherWaterMap() {
           "circle-opacity": 0.75,
         },
       });
+
+      setMapReady(true);
     });
 
     mapRef.current = map;
@@ -195,44 +202,36 @@ export function WeatherWaterMap() {
     return () => {
       map.remove();
       mapRef.current = null;
+      setMapReady(false);
     };
   }, []);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) {
+    if (!map || !mapReady) {
       return;
     }
 
-    const source = map.getSource("opw") as GeoJSONSource | undefined;
-    if (source) {
-      source.setData(opwGeoJson as never);
-    }
-  }, [opwGeoJson]);
+    setGeoJsonSourceData(map, "opw", opwGeoJson);
+  }, [mapReady, opwGeoJson]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) {
+    if (!map || !mapReady) {
       return;
     }
 
-    const source = map.getSource("warnings") as GeoJSONSource | undefined;
-    if (source) {
-      source.setData(warningGeoJson as never);
-    }
-  }, [warningGeoJson]);
+    setGeoJsonSourceData(map, "warnings", warningGeoJson);
+  }, [mapReady, warningGeoJson]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) {
+    if (!map || !mapReady) {
       return;
     }
 
-    const source = map.getSource("epa") as GeoJSONSource | undefined;
-    if (source) {
-      source.setData(epaGeoJson as never);
-    }
-  }, [epaGeoJson]);
+    setGeoJsonSourceData(map, "epa", epaGeoJson);
+  }, [epaGeoJson, mapReady]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -282,12 +281,16 @@ export function WeatherWaterMap() {
       setWarningGeoJson(warningsRaw);
       setEpaGeoJson(epaRaw);
       setRadarTileUrl(layers.radarTileUrl ?? null);
+      setMapLayersLoaded(true);
+      setMapLayerError(false);
     };
 
     void loadLayers().catch((error) => {
       if (controller.signal.aborted) {
         return;
       }
+      setMapLayerError(true);
+      setMapLayersLoaded(false);
       console.error("weather map layer load failed", error);
     });
 
@@ -298,7 +301,7 @@ export function WeatherWaterMap() {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) {
+    if (!map || !mapReady || !map.isStyleLoaded()) {
       return;
     }
 
@@ -335,13 +338,16 @@ export function WeatherWaterMap() {
     if (map.getSource(sourceId)) {
       map.removeSource(sourceId);
     }
-  }, [radarTileUrl, showRadar]);
+  }, [mapReady, radarTileUrl, showRadar]);
 
   const floodHighCount = useMemo(() => {
     return (opwGeoJson.features as Array<{ properties?: { value?: number } }>).filter(
       (feature) => (feature.properties?.value ?? 0) > 4,
     ).length;
   }, [opwGeoJson.features]);
+
+  const visibleFeatureCount =
+    opwGeoJson.features.length + warningGeoJson.features.length + epaGeoJson.features.length;
 
   return (
     <Card>
@@ -402,7 +408,24 @@ export function WeatherWaterMap() {
         </div>
       </div>
 
-      <div className="mt-3 h-[420px] overflow-hidden rounded-md border" ref={mapContainerRef} />
+      <div className="relative mt-3 h-[420px] overflow-hidden rounded-md border">
+        <div className="h-full" ref={mapContainerRef} />
+        <MapStatusOverlay
+          description="The basemap is readying before OPW, warning, EPA, and radar layers are applied."
+          title="Loading weather map"
+          visible={!mapReady}
+        />
+        <MapStatusOverlay
+          description="The map is available, but the live environmental layers did not load from the API."
+          title="Map layers unavailable"
+          visible={mapReady && mapLayerError}
+        />
+        <MapStatusOverlay
+          description="No OPW, warning, or EPA features are available in the current layer response."
+          title="No environmental points yet"
+          visible={mapReady && mapLayersLoaded && visibleFeatureCount === 0}
+        />
+      </div>
     </Card>
   );
 }

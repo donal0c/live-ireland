@@ -1,5 +1,6 @@
 "use client";
 
+import { Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { MouseEvent } from "react";
@@ -7,7 +8,6 @@ import { useEffect, useState } from "react";
 
 import { SystemHealthBadge } from "@/components/layout/system-health-badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { dashboardTabs } from "@/lib/navigation";
 
@@ -81,10 +81,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
       {/* Ambient background glow */}
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 -z-10"
-      >
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-[oklch(0.55_0.18_260_/_0.06)] blur-[100px] dark:bg-[oklch(0.55_0.18_260_/_0.08)]" />
         <div className="absolute -left-32 top-1/3 h-80 w-80 rounded-full bg-[oklch(0.60_0.16_195_/_0.04)] blur-[100px] dark:bg-[oklch(0.60_0.16_195_/_0.06)]" />
         <div className="absolute bottom-0 right-1/4 h-72 w-72 rounded-full bg-[oklch(0.55_0.20_290_/_0.03)] blur-[100px] dark:bg-[oklch(0.55_0.20_290_/_0.05)]" />
@@ -103,9 +100,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           {/* Logo area */}
           <div className="mb-1 flex items-center gap-3 px-1">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-lg">
-              <svg viewBox="0 0 24 24" className="h-5 w-5 text-primary" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-              </svg>
+              <Zap aria-hidden="true" className="h-5 w-5 text-primary" />
             </div>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-primary">
@@ -176,9 +171,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               <div className="flex items-center gap-3">
                 {/* Mobile logo */}
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-base lg:hidden">
-                  <svg viewBox="0 0 24 24" className="h-4 w-4 text-primary" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                  </svg>
+                  <Zap aria-hidden="true" className="h-4 w-4 text-primary" />
                 </div>
                 <div>
                   <h2 className="text-base font-bold tracking-tight sm:text-lg">
@@ -192,7 +185,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               <div className="flex items-center gap-2">
                 <div className="hidden items-center gap-1.5 sm:flex">
                   <div className="live-dot" />
-                  <span className="text-[11px] font-medium text-muted-foreground lg:hidden">Live</span>
+                  <span className="text-[11px] font-medium text-muted-foreground lg:hidden">
+                    Live
+                  </span>
                 </div>
                 <SystemHealthBadge />
                 <ThemeToggle />
@@ -229,10 +224,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           </header>
 
           {/* Main content */}
-          <main
-            className="glass-card flex-1 rounded-2xl p-4 sm:p-6"
-            id="dashboard-main"
-          >
+          <main className="glass-card flex-1 rounded-2xl p-4 sm:p-6" id="dashboard-main">
             {children}
           </main>
         </div>

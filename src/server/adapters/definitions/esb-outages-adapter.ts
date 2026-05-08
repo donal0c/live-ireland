@@ -1,6 +1,7 @@
 import { BaseAdapter } from "@/server/adapters/core/base-adapter";
 import type { AdapterEnvelope, AdapterPollContext } from "@/server/adapters/core/types";
 import { fetchJson } from "@/server/adapters/utils/http";
+import { getRuntimeConfig } from "@/server/config";
 
 type EsbOutage = {
   i?: string;
@@ -17,8 +18,6 @@ type EsbPayload = {
   plannedCount: number;
 };
 
-const ESB_SUBSCRIPTION_KEY = "f713e48af3a746bbb1b110ab69113960";
-
 export class EsbOutagesAdapter extends BaseAdapter<EsbPayload> {
   constructor() {
     super({
@@ -29,12 +28,13 @@ export class EsbOutagesAdapter extends BaseAdapter<EsbPayload> {
   }
 
   protected async fetch(context: AdapterPollContext): Promise<AdapterEnvelope<EsbPayload>> {
+    const config = getRuntimeConfig();
     const response = await fetchJson<EsbResponse>(
       "https://api.esb.ie/esbn/powercheck/v1.0/outages",
       context,
       {
         headers: {
-          "API-Subscription-Key": ESB_SUBSCRIPTION_KEY,
+          "API-Subscription-Key": config.esbSubscriptionKey,
         },
       },
     );

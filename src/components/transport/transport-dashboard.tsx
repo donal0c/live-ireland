@@ -4,15 +4,15 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@tremor/react";
-import { Bike, MapPin, Train, TramFront, TrafficCone } from "lucide-react";
+import { Bike, MapPin, TrafficCone, Train, TramFront } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  KpiCard,
+  MapStatusOverlay,
+  useAdapterSnapshot,
+} from "@/components/dashboard/dashboard-primitives";
+import { setGeoJsonSourceData } from "@/components/dashboard/maplibre-utils";
 import { DegradedBanner } from "@/components/ui/degraded-banner";
-import { trpcClient } from "@/lib/trpc-client";
-
-type AdapterEnvelope<T> = {
-  capturedAt: string;
-  payload: T;
-};
 
 type IrishRailPayload = { trainCount: number };
 type LuasPayload = { stop: string; tramsDue: number };
@@ -105,17 +105,6 @@ const luasStops = [
   { code: "TPT", label: "The Point (Red)" },
 ];
 
-const useAdapterSnapshot = <T,>(adapterId: string, refetchInterval = 30_000) => {
-  return useQuery({
-    queryFn: async () => {
-      const result = await trpcClient.dashboard.latestAdapterSnapshot.query({ adapterId });
-      return result as AdapterEnvelope<T> | null;
-    },
-    queryKey: ["adapter-snapshot", adapterId],
-    refetchInterval,
-  });
-};
-
 const toFeatureCollection = <T extends Record<string, number | string>>(
   points: T[],
   latKey: keyof T,
@@ -151,63 +140,11 @@ type LazyMapInstance = {
   setLayoutProperty: (id: string, name: string, value: string) => void;
 };
 
-const getGeoJsonSource = (source: unknown): { setData: (data: unknown) => void } | null => {
-  if (!source || typeof source !== "object" || !("setData" in source)) {
-    return null;
-  }
-
-  const setData = (source as { setData?: unknown }).setData;
-  if (typeof setData !== "function") {
-    return null;
-  }
-
-  return { setData: setData as (data: unknown) => void };
-};
-
-function KpiCard({
-  icon: Icon,
-  label,
-  value,
-  unit,
-  subtext,
-  accentColor,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string | number;
-  unit?: string;
-  subtext?: string;
-  accentColor?: string;
-}) {
-  return (
-    <div className="kpi-card group rounded-xl border bg-card/80 p-4 backdrop-blur transition-all duration-200 hover:bg-card/95 hover:shadow-md">
-      <div className="flex items-start justify-between">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-        <div
-          className="flex h-8 w-8 items-center justify-center rounded-lg opacity-60 transition-opacity group-hover:opacity-100"
-          style={{ backgroundColor: `${accentColor ?? "var(--kpi-accent)"}15` }}
-        >
-          <Icon
-            className="h-4 w-4"
-            style={{ color: accentColor ?? "var(--kpi-accent)" }}
-          />
-        </div>
-      </div>
-      <div className="mt-2 metric-value">
-        <span className="text-2xl font-bold tabular-nums tracking-tight">{value}</span>
-        {unit ? <span className="ml-1 text-sm font-medium text-muted-foreground">{unit}</span> : null}
-      </div>
-      {subtext ? (
-        <p className="mt-1 text-[11px] text-muted-foreground">{subtext}</p>
-      ) : null}
-    </div>
-  );
-}
-
 function TransportMap({ overview }: { overview: TransportOverview | null }) {
   const mapRef = useRef<LazyMapInstance | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [maplibreModule, setMaplibreModule] = useState<null | typeof import("maplibre-gl")>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   const [showTrains, setShowTrains] = useState(true);
   const [showBikes, setShowBikes] = useState(true);
@@ -298,6 +235,8 @@ function TransportMap({ overview }: { overview: TransportOverview | null }) {
           "circle-opacity": 0.7,
         },
       });
+
+      setMapReady(true);
     });
 
     mapRef.current = map as unknown as LazyMapInstance;
@@ -305,64 +244,56 @@ function TransportMap({ overview }: { overview: TransportOverview | null }) {
     return () => {
       map.remove();
       mapRef.current = null;
+      setMapReady(false);
     };
   }, [maplibreModule]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) {
+    if (!map || !mapReady) {
       return;
     }
 
-    const source = getGeoJsonSource(map.getSource("transport-trains"));
-    if (source) {
-      source.setData(trainsGeoJson as never);
-    }
-  }, [trainsGeoJson]);
+    setGeoJsonSourceData(map, "transport-trains", trainsGeoJson);
+  }, [mapReady, trainsGeoJson]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) {
+    if (!map || !mapReady) {
       return;
     }
 
-    const source = getGeoJsonSource(map.getSource("transport-bikes"));
-    if (source) {
-      source.setData(bikesGeoJson as never);
-    }
-  }, [bikesGeoJson]);
+    setGeoJsonSourceData(map, "transport-bikes", bikesGeoJson);
+  }, [bikesGeoJson, mapReady]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) {
+    if (!map || !mapReady) {
       return;
     }
 
-    const source = getGeoJsonSource(map.getSource("transport-traffic"));
-    if (source) {
-      source.setData(trafficGeoJson as never);
-    }
-  }, [trafficGeoJson]);
+    setGeoJsonSourceData(map, "transport-traffic", trafficGeoJson);
+  }, [mapReady, trafficGeoJson]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.getLayer("transport-trains-layer")) {
+    if (!map || !mapReady || !map.getLayer("transport-trains-layer")) {
       return;
     }
     map.setLayoutProperty("transport-trains-layer", "visibility", showTrains ? "visible" : "none");
-  }, [showTrains]);
+  }, [mapReady, showTrains]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.getLayer("transport-bikes-layer")) {
+    if (!map || !mapReady || !map.getLayer("transport-bikes-layer")) {
       return;
     }
     map.setLayoutProperty("transport-bikes-layer", "visibility", showBikes ? "visible" : "none");
-  }, [showBikes]);
+  }, [mapReady, showBikes]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.getLayer("transport-traffic-layer")) {
+    if (!map || !mapReady || !map.getLayer("transport-traffic-layer")) {
       return;
     }
     map.setLayoutProperty(
@@ -370,7 +301,12 @@ function TransportMap({ overview }: { overview: TransportOverview | null }) {
       "visibility",
       showTraffic ? "visible" : "none",
     );
-  }, [showTraffic]);
+  }, [mapReady, showTraffic]);
+
+  const visibleFeatureCount =
+    (showTrains ? trainsGeoJson.features.length : 0) +
+    (showBikes ? bikesGeoJson.features.length : 0) +
+    (showTraffic ? trafficGeoJson.features.length : 0);
 
   return (
     <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
@@ -401,7 +337,19 @@ function TransportMap({ overview }: { overview: TransportOverview | null }) {
           </label>
         </div>
       </div>
-      <div className="mt-3 h-[440px] overflow-hidden rounded-xl border" ref={containerRef} />
+      <div className="relative mt-3 h-[440px] overflow-hidden rounded-xl border">
+        <div className="h-full" ref={containerRef} />
+        <MapStatusOverlay
+          description="The basemap is readying before live train, bike, and traffic layers are applied."
+          title="Loading transport map"
+          visible={!mapReady}
+        />
+        <MapStatusOverlay
+          description="No visible points are available for the selected transport layers yet."
+          title="No transport points yet"
+          visible={mapReady && visibleFeatureCount === 0}
+        />
+      </div>
     </div>
   );
 }
@@ -519,6 +467,7 @@ export function TransportDashboard() {
           icon={Train}
           label="Active Trains"
           value={irishRailQuery.data?.payload.trainCount ?? "--"}
+          capturedAt={irishRailQuery.data?.capturedAt ?? null}
           accentColor="#3b82f6"
         />
         <KpiCard
@@ -526,24 +475,28 @@ export function TransportDashboard() {
           label="Luas Forecast (MAR)"
           value={luasQuery.data?.payload.tramsDue ?? "--"}
           subtext={luasDataStatus === "LIVE" ? "Live data" : "Limited data"}
+          capturedAt={luasQuery.data?.capturedAt ?? null}
           accentColor="#22c55e"
         />
         <KpiCard
           icon={Bike}
           label="Dublin Bikes Availability"
           value={`${bikeAvailability}%`}
+          capturedAt={bikesQuery.data?.capturedAt ?? null}
           accentColor="#8b5cf6"
         />
         <KpiCard
           icon={MapPin}
           label="Dublin Bikes Stations"
           value={bikesQuery.data?.payload.stationCount ?? "--"}
+          capturedAt={bikesQuery.data?.capturedAt ?? null}
           accentColor="#6366f1"
         />
         <KpiCard
           icon={TrafficCone}
           label="TII TMU Sites"
           value={trafficQuery.data?.payload.siteCount ?? "--"}
+          capturedAt={trafficQuery.data?.capturedAt ?? null}
           accentColor="#14b8a6"
         />
       </div>
@@ -557,7 +510,10 @@ export function TransportDashboard() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="luas-stop-selector">
+            <label
+              className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+              htmlFor="luas-stop-selector"
+            >
               Stop
             </label>
             <select
@@ -577,7 +533,9 @@ export function TransportDashboard() {
 
         <div className="mt-3 grid gap-3 md:grid-cols-3">
           <div className="rounded-xl border bg-card/80 p-3">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Green Line</p>
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              Green Line
+            </p>
             <div className="mt-1">
               <Badge color={greenLineNormal ? "green" : "amber"}>
                 {greenLineNormal ? "Normal" : "Disruption/Unknown"}
@@ -588,7 +546,9 @@ export function TransportDashboard() {
             </p>
           </div>
           <div className="rounded-xl border bg-card/80 p-3">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Red Line</p>
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              Red Line
+            </p>
             <div className="mt-1">
               <Badge color={redLineNormal ? "green" : "amber"}>
                 {redLineNormal ? "Normal" : "Disruption/Unknown"}
@@ -599,7 +559,9 @@ export function TransportDashboard() {
             </p>
           </div>
           <div className="rounded-xl border bg-card/80 p-3">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Selected Stop</p>
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              Selected Stop
+            </p>
             <p className="text-sm font-medium">{selectedLuasQuery.data?.stop ?? "--"}</p>
             <p className="text-xs text-muted-foreground">
               {selectedLuasQuery.data?.message ?? "--"}
@@ -653,7 +615,10 @@ export function TransportDashboard() {
         <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
           <h2 className="text-lg font-bold tracking-tight">Irish Rail Departure Board</h2>
           <div className="mt-2 flex items-center gap-2">
-            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground" htmlFor="irish-rail-station-selector">
+            <label
+              className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+              htmlFor="irish-rail-station-selector"
+            >
               Station
             </label>
             <select

@@ -1,28 +1,15 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@tremor/react";
-import {
-  Activity,
-  AlertTriangle,
-  CloudRain,
-  Droplets,
-  Thermometer,
-  Waves,
-  Wind,
-} from "lucide-react";
+import { AlertTriangle, Droplets, Thermometer, Waves, Wind } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  EmptyState,
+  KpiCard,
+  useAdapterSnapshot,
+} from "@/components/dashboard/dashboard-primitives";
 import { DegradedBanner } from "@/components/ui/degraded-banner";
-import { trpcClient } from "@/lib/trpc-client";
-
-type AdapterEnvelope<T> = {
-  adapterId: string;
-  capturedAt: string;
-  payload: T;
-  recordCount: number;
-  summary: string;
-};
 
 type MetObservationPayload = {
   station: string;
@@ -49,17 +36,6 @@ const WeatherWaterMap = dynamic(
   () => import("@/components/weather/weather-water-map").then((mod) => mod.WeatherWaterMap),
   { ssr: false },
 );
-
-function useAdapterSnapshot<T>(adapterId: string, refetchInterval = 30_000) {
-  return useQuery({
-    queryFn: async () => {
-      const result = await trpcClient.dashboard.latestAdapterSnapshot.query({ adapterId });
-      return result as AdapterEnvelope<T> | null;
-    },
-    queryKey: ["adapter-snapshot", adapterId],
-    refetchInterval,
-  });
-}
 
 type EChartsOption = import("echarts").EChartsOption;
 type EChartsInstance = import("echarts").EChartsType;
@@ -126,46 +102,6 @@ const badgeForLevel = (level: string) => {
   }
   return "gray" as const;
 };
-
-function KpiCard({
-  icon: Icon,
-  label,
-  value,
-  unit,
-  subtext,
-  accentColor,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string | number;
-  unit?: string;
-  subtext?: string;
-  accentColor?: string;
-}) {
-  return (
-    <div className="kpi-card group rounded-xl border bg-card/80 p-4 backdrop-blur transition-all duration-200 hover:bg-card/95 hover:shadow-md">
-      <div className="flex items-start justify-between">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-        <div
-          className="flex h-8 w-8 items-center justify-center rounded-lg opacity-60 transition-opacity group-hover:opacity-100"
-          style={{ backgroundColor: `${accentColor ?? "var(--kpi-accent)"}15` }}
-        >
-          <Icon
-            className="h-4 w-4"
-            style={{ color: accentColor ?? "var(--kpi-accent)" }}
-          />
-        </div>
-      </div>
-      <div className="mt-2 metric-value">
-        <span className="text-2xl font-bold tabular-nums tracking-tight">{value}</span>
-        {unit ? <span className="ml-1 text-sm font-medium text-muted-foreground">{unit}</span> : null}
-      </div>
-      {subtext ? (
-        <p className="mt-1 text-[11px] text-muted-foreground">{subtext}</p>
-      ) : null}
-    </div>
-  );
-}
 
 export function WeatherWaterDashboard() {
   const observationQuery = useAdapterSnapshot<MetObservationPayload>(
@@ -268,6 +204,7 @@ export function WeatherWaterDashboard() {
           label="Temperature (Dublin Airport)"
           value={observationQuery.data?.payload.temperature ?? "--"}
           unit="C"
+          capturedAt={observationQuery.data?.capturedAt ?? null}
           accentColor="#ef4444"
         />
         <KpiCard
@@ -275,6 +212,7 @@ export function WeatherWaterDashboard() {
           label="Humidity"
           value={observationQuery.data?.payload.humidity ?? "--"}
           unit="%"
+          capturedAt={observationQuery.data?.capturedAt ?? null}
           accentColor="#3b82f6"
         />
         <KpiCard
@@ -282,6 +220,7 @@ export function WeatherWaterDashboard() {
           label="Wind Speed"
           value={observationQuery.data?.payload.windSpeed ?? "--"}
           unit="kt"
+          capturedAt={observationQuery.data?.capturedAt ?? null}
           accentColor="#8b5cf6"
         />
         <KpiCard
@@ -289,12 +228,14 @@ export function WeatherWaterDashboard() {
           label="Active Warnings"
           value={warnings?.warningCount ?? "--"}
           subtext={`Y: ${warnings?.yellowCount ?? "--"} O: ${warnings?.orangeCount ?? "--"} R: ${warnings?.redCount ?? "--"}`}
+          capturedAt={warningsQuery.data?.capturedAt ?? null}
           accentColor="#f59e0b"
         />
         <KpiCard
           icon={Waves}
           label="OPW Stations"
           value={opwQuery.data?.payload.featureCount ?? "--"}
+          capturedAt={opwQuery.data?.capturedAt ?? null}
           accentColor="#14b8a6"
         />
       </div>
@@ -313,8 +254,14 @@ export function WeatherWaterDashboard() {
             <span className="text-xs font-medium text-muted-foreground">Streaming</span>
           </div>
         </div>
-        {showWeatherTrend ? (
+        {showWeatherTrend && history.length > 0 ? (
           <EChart option={trendOption} />
+        ) : showWeatherTrend ? (
+          <EmptyState
+            className="mt-4"
+            title="No trend samples yet"
+            description="The trend appears after the weather adapter returns temperature, humidity, and wind together."
+          />
         ) : (
           <button
             className="btn-glow mt-4 rounded-lg border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent"

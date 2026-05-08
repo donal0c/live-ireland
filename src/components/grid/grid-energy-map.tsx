@@ -3,8 +3,10 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { Card } from "@tremor/react";
-import maplibregl, { type GeoJSONSource } from "maplibre-gl";
-import { useEffect, useMemo, useRef } from "react";
+import maplibregl from "maplibre-gl";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { MapStatusOverlay } from "@/components/dashboard/dashboard-primitives";
+import { setGeoJsonSourceData } from "@/components/dashboard/maplibre-utils";
 
 type GridEnergyMapProps = {
   ewicMw: number | null;
@@ -30,6 +32,7 @@ const emptyCollection: FeatureCollection = {
 export function GridEnergyMap({ ewicMw, moyleMw }: GridEnergyMapProps) {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   const lineData = useMemo<FeatureCollection>(() => {
     return {
@@ -143,6 +146,8 @@ export function GridEnergyMap({ ewicMw, moyleMw }: GridEnergyMapProps) {
           "circle-stroke-width": 1,
         },
       });
+
+      setMapReady(true);
     });
 
     mapRef.current = map;
@@ -150,30 +155,25 @@ export function GridEnergyMap({ ewicMw, moyleMw }: GridEnergyMapProps) {
     return () => {
       map.remove();
       mapRef.current = null;
+      setMapReady(false);
     };
   }, []);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) {
+    if (!map || !mapReady) {
       return;
     }
-    const source = map.getSource("energy-lines") as GeoJSONSource | undefined;
-    if (source) {
-      source.setData(lineData as never);
-    }
-  }, [lineData]);
+    setGeoJsonSourceData(map, "energy-lines", lineData);
+  }, [lineData, mapReady]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) {
+    if (!map || !mapReady) {
       return;
     }
-    const source = map.getSource("energy-points") as GeoJSONSource | undefined;
-    if (source) {
-      source.setData(pointData as never);
-    }
-  }, [pointData]);
+    setGeoJsonSourceData(map, "energy-points", pointData);
+  }, [mapReady, pointData]);
 
   return (
     <Card>
@@ -181,7 +181,14 @@ export function GridEnergyMap({ ewicMw, moyleMw }: GridEnergyMapProps) {
       <p className="text-xs text-muted-foreground">
         Interconnector routes, key converter sites, and sample wind assets.
       </p>
-      <div className="mt-3 h-[380px] overflow-hidden rounded-md border" ref={containerRef} />
+      <div className="relative mt-3 h-[380px] overflow-hidden rounded-md border">
+        <div className="h-full" ref={containerRef} />
+        <MapStatusOverlay
+          description="The basemap is readying before interconnector and asset layers are applied."
+          title="Loading grid map"
+          visible={!mapReady}
+        />
+      </div>
     </Card>
   );
 }

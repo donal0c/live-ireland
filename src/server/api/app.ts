@@ -55,7 +55,6 @@ type EsbOutageResponse = {
   }>;
 };
 
-const ESB_SUBSCRIPTION_KEY = "f713e48af3a746bbb1b110ab69113960";
 const apiSecurityHeaders: Record<string, string> = {
   "x-content-type-options": "nosniff",
   "x-frame-options": "DENY",
@@ -259,7 +258,7 @@ export const createApiApp = (adapterManager: AdapterManager) => {
     try {
       const esbResponse = await fetch("https://api.esb.ie/esbn/powercheck/v1.0/outages", {
         headers: {
-          "API-Subscription-Key": ESB_SUBSCRIPTION_KEY,
+          "API-Subscription-Key": config.esbSubscriptionKey,
         },
         signal: c.req.raw.signal,
       });
