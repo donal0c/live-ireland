@@ -358,7 +358,7 @@ export function TransportDashboard() {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8787";
   const [stationCode, setStationCode] = useState("HSTON");
   const [luasStopCode, setLuasStopCode] = useState("MAR");
-  const [showTransportMap, setShowTransportMap] = useState(false);
+  const [showTransportMap] = useState(true);
 
   const irishRailQuery = useAdapterSnapshot<IrishRailPayload>("irish-rail", 90_000);
   const luasQuery = useAdapterSnapshot<LuasPayload>("luas-mar", 30_000);
@@ -593,23 +593,7 @@ export function TransportDashboard() {
         </div>
       </div>
 
-      {showTransportMap ? (
-        <TransportMap overview={overviewQuery.data ?? null} />
-      ) : (
-        <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
-          <h2 className="text-lg font-bold tracking-tight">Transport Operations Map</h2>
-          <p className="text-xs text-muted-foreground">
-            Irish Rail live positions, Dublin Bikes availability, and TII traffic sites.
-          </p>
-          <button
-            className="btn-glow mt-3 rounded-lg border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
-            onClick={() => setShowTransportMap(true)}
-            type="button"
-          >
-            Load map
-          </button>
-        </div>
-      )}
+      {showTransportMap ? <TransportMap overview={overviewQuery.data ?? null} /> : null}
 
       <div className="dashboard-split-grid grid gap-4 lg:grid-cols-2">
         <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">

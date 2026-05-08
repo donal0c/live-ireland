@@ -13,6 +13,12 @@ import {
   useAdapterSnapshot,
 } from "@/components/dashboard/dashboard-primitives";
 import { setGeoJsonSourceData } from "@/components/dashboard/maplibre-utils";
+import {
+  buildActionBrief,
+  type SpatialHotspot,
+  type TimelineEntry,
+  type TimelineSeverity,
+} from "@/components/outages/action-brief";
 import { DegradedBanner } from "@/components/ui/degraded-banner";
 
 type EsbPayload = {
@@ -56,17 +62,6 @@ type RailDeparturesResponse = {
     status: string;
   }>;
   stationName: string;
-};
-
-type TimelineSeverity = "critical" | "info" | "warning";
-
-type TimelineEntry = {
-  id: string;
-  region: string;
-  severity: TimelineSeverity;
-  time: string;
-  title: string;
-  type: string;
 };
 
 type FeatureCollection = {
@@ -256,7 +251,7 @@ export function OutagesAlertsDashboard() {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8787";
   const [severityFilter, setSeverityFilter] = useState<"all" | TimelineSeverity>("all");
   const [regionFilter, setRegionFilter] = useState("all");
-  const [showOutagesMap, setShowOutagesMap] = useState(false);
+  const [showOutagesMap] = useState(true);
 
   const esbSummaryQuery = useAdapterSnapshot<EsbPayload>("esb-powercheck-outages", 60_000);
   const warningsSummaryQuery = useAdapterSnapshot<MetWarningsPayload>("met-warnings", 60_000);
@@ -456,7 +451,7 @@ export function OutagesAlertsDashboard() {
     }));
   }, [esbMapQuery.data?.outages]);
 
-  const spatialHotspots = useMemo(() => {
+  const spatialHotspots = useMemo<SpatialHotspot[]>(() => {
     const points = [
       ...esbMapPoints.map((point) => ({ lat: point.lat, lng: point.lng, source: "Power" })),
       ...floodAlerts.map((point) => ({ lat: point.lat, lng: point.lng, source: "Flood" })),
@@ -505,6 +500,10 @@ export function OutagesAlertsDashboard() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
   }, [esbMapPoints, floodAlerts]);
+  const actionBrief = useMemo(
+    () => buildActionBrief({ spatialHotspots, timelineEntries }),
+    [spatialHotspots, timelineEntries],
+  );
   const hasAnyError = [
     esbSummaryQuery,
     warningsSummaryQuery,
@@ -550,6 +549,59 @@ export function OutagesAlertsDashboard() {
       </div>
 
       <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold tracking-tight">Operator Action Brief</h2>
+            <p className="text-xs text-muted-foreground">
+              Prioritized from active outages, flood signals, weather warnings, and rail delays.
+            </p>
+          </div>
+          <Badge color={actionBrief.some((item) => item.priority === "high") ? "red" : "green"}>
+            {actionBrief.some((item) => item.priority === "high")
+              ? "Action needed"
+              : "No urgent action"}
+          </Badge>
+        </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {actionBrief.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-card/50 p-4">
+              <p className="text-sm font-semibold">No priority actions right now</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Current feeds do not show critical warnings, clustered outages, flood thresholds, or
+                rail delays that need immediate attention.
+              </p>
+            </div>
+          ) : (
+            actionBrief.map((item) => (
+              <div className="rounded-xl border bg-card/80 p-4" key={item.id}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">{item.action}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{item.detail}</p>
+                  </div>
+                  <Badge
+                    color={
+                      item.priority === "high"
+                        ? "red"
+                        : item.priority === "medium"
+                          ? "amber"
+                          : "blue"
+                    }
+                  >
+                    {item.priority}
+                  </Badge>
+                </div>
+                <p className="mt-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {item.source} · {item.region}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
         <h2 className="text-lg font-bold tracking-tight">Unified Alert Map</h2>
         <p className="text-xs text-muted-foreground">
           ESB outage locations and OPW flood-threshold stations.
@@ -557,15 +609,7 @@ export function OutagesAlertsDashboard() {
         <div className="mt-3">
           {showOutagesMap ? (
             <OutagesMap esbOutages={esbMapPoints} floodAlerts={floodAlerts} />
-          ) : (
-            <button
-              className="btn-glow rounded-lg border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
-              onClick={() => setShowOutagesMap(true)}
-              type="button"
-            >
-              Load map
-            </button>
-          )}
+          ) : null}
         </div>
       </div>
 

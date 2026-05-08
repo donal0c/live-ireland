@@ -120,8 +120,8 @@ export function WeatherWaterDashboard() {
   const [history, setHistory] = useState<
     Array<{ time: string; temperature: number; humidity: number; wind: number }>
   >([]);
-  const [showWeatherMap, setShowWeatherMap] = useState(false);
-  const [showWeatherTrend, setShowWeatherTrend] = useState(false);
+  const [showWeatherMap] = useState(true);
+  const [showWeatherTrend] = useState(true);
 
   useEffect(() => {
     const snapshot = observationSnapshot;
@@ -262,15 +262,7 @@ export function WeatherWaterDashboard() {
             title="No trend samples yet"
             description="The trend appears after the weather adapter returns temperature, humidity, and wind together."
           />
-        ) : (
-          <button
-            className="btn-glow mt-4 rounded-lg border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
-            onClick={() => setShowWeatherTrend(true)}
-            type="button"
-          >
-            Load trend chart
-          </button>
-        )}
+        ) : null}
       </div>
 
       {/* ─── Warnings & Water/Marine/Air Split ─── */}
@@ -324,23 +316,7 @@ export function WeatherWaterDashboard() {
       </div>
 
       {/* ─── Weather & Water Map ─── */}
-      {showWeatherMap ? (
-        <WeatherWaterMap />
-      ) : (
-        <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
-          <h2 className="text-lg font-bold tracking-tight">Weather & Water Map</h2>
-          <p className="text-xs text-muted-foreground">
-            OPW flood-risk points, Met warning polygons, EPA stations, and radar overlay.
-          </p>
-          <button
-            className="btn-glow mt-4 rounded-lg border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
-            onClick={() => setShowWeatherMap(true)}
-            type="button"
-          >
-            Load map
-          </button>
-        </div>
-      )}
+      {showWeatherMap ? <WeatherWaterMap /> : null}
     </section>
   );
 }

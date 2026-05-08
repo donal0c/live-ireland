@@ -65,6 +65,7 @@ Phase 10 hardening currently includes:
 
 ```bash
 npm run lint
+npm test
 npx tsc --noEmit
 npm run build
 npm run audit:deps

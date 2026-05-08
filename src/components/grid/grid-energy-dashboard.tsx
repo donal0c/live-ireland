@@ -175,8 +175,8 @@ export function GridEnergyDashboard() {
   const [aggregation, setAggregation] = useState("raw");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
-  const [showTopologyMap, setShowTopologyMap] = useState(false);
-  const [showCharts, setShowCharts] = useState(false);
+  const [showTopologyMap] = useState(true);
+  const [showCharts] = useState(true);
   const hasAnyError = [
     demandQuery,
     generationQuery,
@@ -476,17 +476,7 @@ export function GridEnergyDashboard() {
             <span className="text-xs font-medium text-muted-foreground">Streaming</span>
           </div>
         </div>
-        {showCharts ? (
-          <EChart className="h-[34rem]" option={gaugeOption} />
-        ) : (
-          <button
-            className="btn-glow mt-4 rounded-lg border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
-            onClick={() => setShowCharts(true)}
-            type="button"
-          >
-            Load charts
-          </button>
-        )}
+        {showCharts ? <EChart className="h-[34rem]" option={gaugeOption} /> : null}
       </div>
 
       {/* ─── KPI cards ─── */}
@@ -717,21 +707,7 @@ export function GridEnergyDashboard() {
             ewicMw={interconnectionQuery.data?.payload.ewicMw ?? null}
             moyleMw={interconnectionQuery.data?.payload.moyleMw ?? null}
           />
-        ) : (
-          <div className="rounded-xl border bg-card/60 p-5 backdrop-blur">
-            <h2 className="text-base font-bold tracking-tight">Grid Topology Map</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Interconnector routes, key converter sites, and sample wind assets
-            </p>
-            <button
-              className="btn-glow mt-3 rounded-lg border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent"
-              onClick={() => setShowTopologyMap(true)}
-              type="button"
-            >
-              Load map
-            </button>
-          </div>
-        )}
+        ) : null}
       </div>
     </section>
   );
